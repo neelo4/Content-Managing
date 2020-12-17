@@ -1,10 +1,852 @@
-How to use
-----------
+var $messages = $('.messages-content'),
+    d, h, m,
+    i = 0;
 
-Run "npm install" inside this project folder to install all dependencies.
+$(window).load(function() {
+  $messages.mCustomScrollbar();
+  setTimeout(function() {
+    fakeMessage();
+  }, 100);
+});
 
-Make sure you use the latest version of the CLI (upgrade guide below)
+function updateScrollbar() {
+  $messages.mCustomScrollbar("update").mCustomScrollbar('scrollTo', 'bottom', {
+    scrollInertia: 10,
+    timeout: 0
+  });
+}
 
-Run "ng serve" to see the app in action (try "npm start" in case "ng serve" fails).
+function setDate(){
+  d = new Date()
+  if (m != d.getMinutes()) {
+    m = d.getMinutes();
+    $('<div class="timestamp">' + d.getHours() + ':' + m + '</div>').appendTo($('.message:last'));
+  }
+}
 
-Feel free to compare it with your project code to spot any errors you might have.
+function insertMessage() {
+  msg = $('.message-input').val();
+  if ($.trim(msg) == '') {
+    return false;
+  }
+  $('<div class="message message-personal">' + msg + '</div>').appendTo($('.mCSB_container')).addClass('new');
+  setDate();
+  $('.message-input').val(null);
+  updateScrollbar();
+  setTimeout(function() {
+    fakeMessage();
+  }, 1000 + (Math.random() * 20) * 100);
+}
+
+$('.message-submit').click(function() {
+  insertMessage();
+});
+
+$(window).on('keydown', function(e) {
+  if (e.which == 13) {
+    insertMessage();
+    return false;
+  }
+})
+
+var Fake = [
+  'Thanks for calling Santander! How can i help you today? ',
+  'Let me gather the required information',
+  'please help me with your good name<input type="text" class="form-control oracle-search" name="query"  placeholder="Start typing something to search..."> ',
+  'Thanks..... give me a min to assist you  <input type="range" value="50" min="0" max="100" step="10" />',
+  'we are Predicting... <div class="loading-img"><img src="http://algom.x10host.com/chat/img/chat.gif"  alt=""/></div>',
+  'great.. do you want to predict another? <button class="buttonx sound-on-click">Yes</button> <button class="buttony sound-on-click">No</button> ',
+  'Bye',
+  ':)'
+]
+
+function fakeMessage() {
+  if ($('.message-input').val() != '') {
+    return false;
+  }
+  $('<div class="message loading new"><figure class="avatar"><img src="assests/customer-service.png" /></figure><span></span></div>').appendTo($('.mCSB_container'));
+  updateScrollbar();
+
+  setTimeout(function() {
+    $('.message.loading').remove();
+    $('<div class="message new"><figure class="avatar"><img src="assests/customer-service.png" /></figure>' + Fake[i] + '</div>').appendTo($('.mCSB_container')).addClass('new');
+    $('<div class="message loading new"><figure class="avatar"><img src="assests/customer-service.png" /></figure><span></span></div>').appendTo($('.mCSB_container'));
+    
+   
+    setDate();
+    updateScrollbar();
+    i++;
+  }, 1000 + (Math.random() * 20) * 100);
+
+}
+
+
+
+{/* <input type="text" class="form-control oracle-search" name="query"  placeholder="Start typing something to search..."> ',
+  'Please Enter Your Target Price' */}
+
+
+
+
+  $(document).ready(function(){
+    $('.floatingButton').on('click',
+        function(e){
+            e.preventDefault();
+            $(this).toggleClass('open');
+            if($(this).children('.fa').hasClass('fa-plus'))
+            {
+                $(this).children('.fa').removeClass('fa-plus');
+                $(this).children('.fa').addClass('fa-close');
+            } 
+            else if ($(this).children('.fa').hasClass('fa-close')) 
+            {
+                $(this).children('.fa').removeClass('fa-close');
+                $(this).children('.fa').addClass('fa-plus');
+            }
+            $('.floatingMenu').stop().slideToggle();
+        }
+    );
+    $(this).on('click', function(e) {
+        var container = $(".floatingButton");
+
+        // if the target of the click isn't the container nor a descendant of the container
+        if (!container.is(e.target) && $('.floatingButtonWrap').has(e.target).length === 0) 
+        {
+            if(container.hasClass('open'))
+            {
+                container.removeClass('open');
+            }
+            if (container.children('.fa').hasClass('fa-close')) 
+            {
+                container.children('.fa').removeClass('fa-close');
+                container.children('.fa').addClass('fa-plus');
+            }
+            $('.floatingMenu').hide();
+        }
+    });
+});
+
+
+
+
+
+
+
+var navbar = document.getElementById("navbar");
+var sticky = navbar.offsetTop;
+// Initial state
+var scrollPos = 0;
+// adding scroll event
+window.addEventListener('scroll', function(){
+  if (window.pageYOffset >= sticky) {
+  navbar.classList.add("sticky")
+  } else {
+  navbar.classList.remove("sticky");
+  }
+});
+
+
+
+
+
+
+function flipCover (css, options) {
+  var options = options || {}
+  if (typeof css === "object") {
+    options = css
+  } else {
+    options.css = css
+  }
+
+  var css = options.css
+  var url = options.url
+  var text = options.text || css
+  var width = options.width
+  var height = options.height
+
+  var $section = $(".flip-cover-" + css).addClass(css + "-section")
+  var $button = $("<div>").addClass(css + "-button")
+  var $cover = $("<div>").addClass(css + "-cover")
+  var $outer = $("<div>").addClass(css + "-outer")
+  var $inner = $("<div>").addClass(css + "-inner")
+
+  if (width) {
+    $section.css("width", width)
+  }
+
+  if (height) {
+    $section.css("height", height)
+
+    var lineHeight = ':after{ line-height: ' + height + ';}'
+    var $outerStyle = $('<style>').text('.' + css + '-outer' + lineHeight)
+    $outerStyle.appendTo($outer)
+    var $innerStyle = $('<style>').text('.' + css + '-inner' + lineHeight)
+    $innerStyle.appendTo($inner)
+  }
+
+  $cover.html($outer)
+  $inner.insertAfter($outer)
+
+  $button.html($("<a>").text(text).attr("href", url))
+
+  $section.html($button)
+  $cover.insertAfter($button)
+ }
+
+
+
+flipCover({
+  css: "dribbble",
+  url: "https://dribbble.com/vveleva",
+  text: "vveleva",
+  width: "80px"
+})
+
+flipCover("twiter", {
+  url: "https://twitter.com/vveleva",
+  text: "vveleva",
+  width: "80px"
+})
+
+flipCover("linkedin", {
+  url: "https://linkedin.com/in/vveleva",
+  text: "vveleva",
+  width: "80px"
+})
+
+flipCover("email", {
+  text: "vvveleva @gmail",
+  width: "80px",
+  height: "50px"
+})
+
+
+
+
+
+
+$(document).ready(function(){
+  $('#to').click(function() {
+    $('.identified-tags').toggle("slide");
+  });
+});
+
+/** script of last login */
+
+var acc= document.getElementsByClassName("accordion");
+for(var i=0; i<acc.length; i++){
+    acc[i].addEventListener("click", function(){
+        this.classList.toggle("active");
+        var panel=this.nextElementSibling;
+        if(panel.style.display==="block"){
+            panel.style.display="none";
+        }else{
+            panel.style.display= "block";
+        }
+    });
+}
+
+
+$(document).ready(function(){
+  $('#dropDown').click(function(){
+    $('.drop-down').toggleClass('drop-down--active');
+  });
+});
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+const myString = 
+[
+  "Step 1:Is there a fraud block on the card"
+  
+  
+];
+function curated() {
+    document.getElementById("GFG_DOWN").innerHTML = myString;
+  }
+
+  const justString = 
+[
+  "Step 4:Is there a fraud block on the card"
+  
+  
+];
+
+
+  function function1() {
+    document.getElementById("last").innerHTML = justString;
+    
+     
+  }
+
+  function function2() {
+    document.getElementById("client-name").innerHTML = "Step 1.";
+  }
+
+  function function3() {
+    document.getElementById("client-name").innerHTML = "You will be directed immediately!"
+
+  }
+
+
+var i = 0;
+var txt = 'Contactless not working';
+
+var speed = 50;
+var text = 'how to change cardholder name';
+var sometxt =  'contactless not working,expiry';
+var unabletxt =  'unable to use contactless';
+var exprtxt='contacless expiry date';
+
+
+var callOne = true;
+
+function typeWriter() {
+  if (i < txt.length) {
+    document.getElementById("send-msg").innerHTML += txt.charAt(i);
+    i++;
+    setTimeout(typeWriter, speed);
+  }
+  callOne = !callOne;
+}
+
+function two() {
+  if (i < text.length) {
+    document.getElementById("msg-send").innerHTML += text.charAt(i);
+    i++;
+    setTimeout(two, speed);
+  }
+}
+
+
+
+function call(){
+  document.getElementById("send-msg").innerHTML =''
+  search_value=document.getElementById("search").value;
+console.log(search_value);
+
+ if(search_value =='contactless not working'){
+
+    document.getElementById("send-msg").innerHTML = txt;
+  
+ }
+
+  else if(search_value =='contactless not working,expiry'){
+
+  document.getElementById("last").innerHTML = sometxt;
+
+}
+ else if(search_value =='unable to use contactless'){
+
+  document.getElementById("send-msg").innerHTML = unabletxt;
+
+}
+else if(search_value =='contacless expiry date')
+ {
+  document.getElementById("last").innerHTML = exprtxt;
+ }
+
+ else{
+  
+    document.getElementById("msg-send").innerHTML = text;
+  }
+}
+
+
+$(document).ready(function(){
+  console.log("check");
+  $('#useful').click(function() {
+    $('.doc').toggle("slide");
+  });
+});
+
+
+
+
+$(document).ready(function(){
+  $('#process').click(function() {
+    $('.menu').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#tag').click(function() {
+    $('.full-info').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#respond').click(function() {
+    $('.response').toggle("slide");
+  });
+});
+
+
+
+$(document).ready(function(){
+  $('#sent').click(function() {
+    $('.panel__content-inner').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#send-msg').click(function() {
+    $('.curated-material').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#appear').click(function() {
+    $('.fulldoc').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#showup').click(function() {
+    $('.displaydoc').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#showstep').click(function() {
+    $('.displaystep').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#msgbubble').click(function() {
+    $('.showbubble').toggle("slide");
+  });
+});
+
+
+
+$(document).ready(function(){
+  $('#sop').click(function() {
+    $('.showsop').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#step3').click(function() {
+    $('.expiry').toggle("slide");
+  });
+});
+
+$(document).ready(function(){
+  $('#scam').click(function() {
+    $('.btn-appear').toggle("slide");
+  });
+});
+
+
+$(document).ready(function(){
+  $('#card').click(function() {
+    $('.btn-rpa').toggle("slide");
+  });
+});
+
+
+
+
+
+
+
+
+
+/*  for drop down */
+
+/* When the user clicks on the button, 
+toggle between hiding and showing the dropdown content */
+function myFunction() {
+  document.getElementById("myDropdown").classList.toggle("show");
+}
+
+// Close the dropdown if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdowns = document.getElementsByClassName("dropdown-content");
+    var i;
+    for (i = 0; i < dropdowns.length; i++) {
+      var openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+}
+
+
+
+
+/*  for another step drop down */
+/* When the user clicks on the button, 
+toggle between hiding and showing the dropdown content */
+function anotherstep() {
+  document.getElementById("my").classList.toggle("show");
+}
+
+// Close the dropdown if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdowns = document.getElementsByClassName("dropdown-content");
+    var i;
+    for (i = 0; i < dropdowns.length; i++) {
+      var openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+}
+
+/*  for another step drop down */
+
+
+
+
+/*  for another step drop down */
+/* When the user clicks on the button, 
+toggle between hiding and showing the dropdown content */
+function step1() {
+  document.getElementById("curation").classList.toggle("show");
+}
+
+// Close the dropdown if the user clicks outside of it
+window.onclick = function(event) {
+  if (!event.target.matches('.dropbtn')) {
+    var dropdowns = document.getElementsByClassName("dropdown-content");
+    var i;
+    for (i = 0; i < dropdowns.length; i++) {
+      var openDropdown = dropdowns[i];
+      if (openDropdown.classList.contains('show')) {
+        openDropdown.classList.remove('show');
+      }
+    }
+  }
+}
+
+/*  for another step drop down */
+
+
+
+function thumbs(x) {
+  x.classList.toggle("fa-thumbs-up");
+
+
+}
+
+
+
+
+
+
+
+
+
+
+/* Extra script added for typing panel */
+
+
+const msgerForm = get(".msger-inputarea");
+const msgerInput = get(".msger-input");
+const msgerChat = get(".msger-chat");
+
+const BOT_MSGS = [
+  "Hi, how are you?",
+  "Ohh... I can't understand what you trying to say. Sorry!",
+  "I like to play games... But I don't know how to play!",
+  "Sorry if my answers are not relevant. :))",
+  "I feel sleepy! :("
+];
+
+// Icons made by Freepik from www.flaticon.com
+const BOT_IMG = "https://image.flaticon.com/icons/svg/327/327779.svg";
+const PERSON_IMG = "https://image.flaticon.com/icons/svg/145/145867.svg";
+const BOT_NAME = "BOT";
+const PERSON_NAME = "Sajad";
+
+msgerForm.addEventListener("submit", event => {
+  event.preventDefault();
+
+  const msgText = msgerInput.value;
+  if (!msgText) return;
+
+  appendMessage(PERSON_NAME, PERSON_IMG, "right", msgText);
+  msgerInput.value = "";
+
+  botResponse();
+});
+
+function appendMessage(name, img, side, text) {
+  //   Simple solution for small apps
+  const msgHTML = `
+    <div class="msg ${side}-msg">
+      <div class="msg-img" style="background-image: url(${img})"></div>
+
+      <div class="msg-bubble">
+        <div class="msg-info">
+          <div class="msg-info-name">${name}</div>
+          <div class="msg-info-time">${formatDate(new Date())}</div>
+        </div>
+
+        <div class="msg-text">${text}</div>
+      </div>
+    </div>
+  `;
+
+  msgerChat.insertAdjacentHTML("beforeend", msgHTML);
+  msgerChat.scrollTop += 500;
+}
+
+function botResponse() {
+  const r = random(0, BOT_MSGS.length - 1);
+  const msgText = BOT_MSGS[r];
+  const delay = msgText.split(" ").length * 100;
+
+  setTimeout(() => {
+    appendMessage(BOT_NAME, BOT_IMG, "left", msgText);
+  }, delay);
+}
+
+// Utils
+function get(selector, root = document) {
+  return root.querySelector(selector);
+}
+
+function formatDate(date) {
+  const h = "0" + date.getHours();
+  const m = "0" + date.getMinutes();
+
+  return `${h.slice(-2)}:${m.slice(-2)}`;
+}
+
+function random(min, max) {
+  return Math.floor(Math.random() * (max - min) + min);
+}
+
+$('#GFG_UP').text( 
+  ""); 
+
+  function show(divId) { 
+      $("#" + divId).show(); 
+  } 
+
+  function GFG_Fun() { 
+      show('div'); 
+      $('#GFG_DOWN').text("DIV Box is visible."); 
+  } 
+
+
+
+
+
+  $(".js-panel-toggle").click(function () {
+    var $panelContent = $(this).parents(".panel").children(".panel__content");
+    if ($panelContent.is(":visible")) {
+        $panelContent.slideUp(250).parents(".panel").addClass("panel--is-closed");
+    } else {
+        $panelContent.slideDown(250).parents(".panel").removeClass("panel--is-closed");
+    }
+});
+  
+
+
+
+
+// for previous next
+
+$(document).ready(function(){
+  var totalrows = $(".divControl").length;
+  var pageSize=4;
+  var noOfPage = totalrows/pageSize;
+  noOfPage = Math.ceil(noOfPage);
+  for(var i=1;i<=noOfPage;i++)
+   {
+    $("#divPages").append('<div class="page">'+i+'</div>'); 
+   }
+   var totalPagenum = $("div.page").length;
+   if(totalPagenum >2)
+   {
+    $("div.page").hide();
+    for(var n=1;n<=2;n++)
+    {
+     $("div.page:nth-child("+n+")").show();
+    }
+   }
+   else{
+     $("div.next").hide();
+    $("div.prev").hide();
+   }
+   $("div.divControl").hide();
+  for(var j=1;j<=pageSize;j++)
+   {
+     $("div.divControl:nth-child("+j+")").show();
+   }
+   displayevent();
+    $("div.next").click(function(){
+    if($("div.selected:last").nextAll('div.page').length > 2)
+   {
+        $("div.selected").last().nextAll(':lt(2)').show();
+        $("div.selected").hide();
+        displayevent();
+        //lastposevent();
+        $("div.prev").show();
+        $("div.next").show();
+    }
+    else{
+     $("div.selected").last().nextAll().show();
+     $("div.selected").hide();
+     displayevent();
+     $("div.next").hide();
+     $("div.prev").show();
+    }
+   });
+   $("div.prev").click(function(){
+   if($("div.selected:first").prevAll('div.page').length > 2)
+   {
+        $("div.selected").first().prevAll(':lt(2)').show();
+        $("div.selected").hide();
+        $("div.prev").show();
+        $("div.next").show();
+        displayevent();
+   }
+   else{
+   $("div.selected").first().prevAll().show();
+        $("div.selected").hide();
+        $("div.prev").hide();
+        $("div.next").show();
+        displayevent();
+        }
+   });
+  $("div.page").click(function(){
+   var currentPage = $(this).text();
+       $("div.divControl").hide();
+    for (var k = (currentPage * pageSize) - (pageSize-1); k <= (currentPage * pageSize); k++) 
+   {
+     $("div.divControl:nth-child("+k+")").show();
+   }  
+   });
+ });
+ function displayevent()
+ {
+   $("div.page").each(function(){
+    if( $(this).css('display') === 'block') {
+   $(this).addClass('selected');
+   }
+   else{
+   $(this).removeClass('selected');
+   }
+   });
+ }
+
+
+
+  //for clicking up and down
+
+ $(document).ready(function(){
+  $(".change").click(function(){
+  var x= $(this).find(".click").text();
+  if(x=="+")
+  {
+  $(this).find(".click").text('-');
+  $(this).next().slideDown();
+  }
+  else
+  {
+  $(this).find(".click").text('+');
+  $(this).next().slideUp();
+  }
+  });
+  });
+
+
+  
+   //for hiding and showing div
+
+   function switchVisible() {
+    if (document.getElementById('Div1')) {
+
+        if (document.getElementById('Div1').style.display == 'none') {
+            document.getElementById('Div1').style.display = 'block';
+            document.getElementById('Div2').style.display = 'none';
+            document.getElementById('Div3').style.display = 'none';
+
+        }
+        else {
+            document.getElementById('Div1').style.display = 'none';
+            document.getElementById('Div2').style.display = 'block';
+            document.getElementById('Div3').style.display = 'block';
+        }
+    }
+}
+
+
+
+
+
+
+
+/* for closing doc*/
+
+// $(".js-open-modal").click(function(){
+//   $(".modal").addClass("visible");
+// });
+
+$(".js-close-modal").click(function(){
+  $(".modal").removeClass("visible");
+});
+
+$(document).click(function(event) {
+  //if you click on anything except the modal itself or the "open modal" link, close the modal
+  if (!$(event.target).closest(".modal,.js-open-modal").length) {
+    $("body").find(".modal").removeClass("visible");
+  }
+});
+
+
+
+window.onload = function(){
+  // api url 
+  const api_url =  
+        "http://10.176.101.126:3000/getNonCuratedSOP"; 
+    console.log("inside url function");
+  // Defining async function 
+  async function getapi(url) { 
+      
+      // Storing response 
+      const response = await fetch(url); 
+      
+      // Storing data in form of JSON 
+      var data = await response.json(); 
+      console.log(data); 
+      
+      console.log(data); 
+  } 
+  // Calling that async function 
+  getapi(api_url); 
+  
+  };
+
+
+
+
+
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                     
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                  
+
+
