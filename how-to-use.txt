@@ -1,17 +1,23 @@
 const express = require('express')
-const cors = require('cors')
-
 // will use this later to send requests
 const http = require('http')
+const cors = require('cors')
+const dbService = require('./dbService')
 //import env variables 
 //require('dotenv').config()
 const app = express()
-app.use(cors())
 const port = process.env.PORT || 3000
+const processSOP = require('./processSOP')
+
+//middleware
+app.use(cors())
 app.use(express.json())
 app.use(express.urlencoded({ extended: true }))
+
 app.get('/', (req, res) => { res.status(200).send('Server is working.') })
 app.listen(port, () => { console.log(`Server is running at http://localhost:${port}`) })
+
+
 app.post('/getNonCuratedSOP', (req, res) => {
   const queryToSearch = req.body.result && req.body.result.parameters && req.body.result.parameters.queryText ? req.body.result.parameters.queryText : ''
   
@@ -45,16 +51,13 @@ app.post('/getNonCuratedSOP', (req, res) => {
 })
 
 app.post('/getDetectedIntent', (req, res) => {
-  //console.log('Reached getDetectedIntent');
   const query = req.body.result && req.body.result.parameters && req.body.result.parameters.queryText ? req.body.result.parameters.queryText : ''
   console.log('Query ===', query);
   const dialogflow = require('@google-cloud/dialogflow');
-  //console.log('dialogflow ===', dialogflow);
   // Instantiates a session client
   const sessionClient = new dialogflow.SessionsClient();
   detectIntent();
   async function detectIntent(){
-    //console.log('Inside async function');
     // The path to identify the agent that owns the created intent.
     const sessionPath = sessionClient.projectAgentSessionPath(
       'telecom-poc',
@@ -79,10 +82,81 @@ app.post('/getDetectedIntent', (req, res) => {
     }*/
     const responses = await sessionClient.detectIntent(request);
     console.log('Intent === ', responses[0].queryResult.intent.displayName);
-    return res.send(responses[0].queryResult.intent.displayName);
+    var result = {intent:responses[0].queryResult.intent.displayName};
+    return res.send(JSON.stringify(result));
   }
   
 })
 
+app.post('/getCuratedSOP', (req, res) => {
+  const reqIntent = req.body.result && req.body.result.parameters && req.body.result.parameters.queryText ? req.body.result.parameters.queryText : ''
+  const { Client } = require('pg');
 
+const client = new Client({
+    user: 'postgres',
+    host: 'localhost',
+    database: 'postgres',
+    password: 'root',
+    port: 5432,
+});
+
+client.connect();
+
+let query = `
+SELECT sop_id, sop_name, intent, sop, sop_url, is_rpa
+FROM sop_master where intent = $1`;
+
+client.query(query, [reqIntent], (err, resp) => {
+  if (err) {
+      console.error(err);
+      return;
+    }
+    let record = resp.rows[0]
+    query = `SELECT sop_id, step_id, sop FROM sop_steps where sop_id = $1`;
+    client.query(query, [record['sop_id']], (err, resp) => {
+        if (err) { console.error(err); return; }
+        let steps = []
+        resp.rows.forEach((row) => {
+            steps.push(row['sop'])
+        })
+        record['steps'] = steps
+        client.end();
+        return res.send(record);
+    })
+});
+  
+})
+
+app.post('/processSOP', async (req, res) => {
+    /*
+    let input = {"input": [
+        {"sop_id": 1, "intent":"balanceTransfer", "is_rpa":"true", "sop_url": "https://sop20201119114015.azurewebsites.net/Balance%20transfer%20-%20credit%20balance.html"},
+        {"sop_id": 2, "intent":"changeOfAddress", "is_rpa":"false","sop_url": "https://sop20201119114015.azurewebsites.net/Change%20of%20address.html"},
+        {"sop_id": 3, "intent":"oneOffTransferSameCustomer","is_rpa":"true", "sop_url": "https://sop20201119114015.azurewebsites.net/One%20off%20transfer%20-%20same%20customer.html"},
+        {"sop_id": 4, "intent":"oneOffTransfer", "is_rpa":"false","sop_url": "https://sop20201119114015.azurewebsites.net/One%20off%20transfer.html"},
+        {"sop_id": 5, "intent":"reissueCard", "is_rpa":"true","sop_url": "https://sop20201119114015.azurewebsites.net/Reissue%20card%20-%20damaged%20_%20replacement%20_%20expired%20card.html"},
+        {"sop_id": 6, "intent":"servicingGridCreditCards", "is_rpa": "false","sop_url": "https://sop20201119114015.azurewebsites.net/Servicing%20grid%20-%20credit%20cards%20-%20IDV%20Libra.html"}
+        ]
+ }
+    */
+    let input = req.body["input"]
+    let sopObjects = await processSOP.process(input)
+    let sop_master_columns = ["sop_id", "sop_name", "intent", "sop", "sop_url", "is_rpa"]
+    let sop_master_records = await processSOP.sopObjectsToNestedArray(sop_master_columns, sopObjects)
+    await dbService.insertBulk("sop_master", sop_master_records)
+
+    let sop_steps_records = []
+    sopObjects.forEach((sopObject) => {
+        let sop_id = sopObject['sop_id']
+        let steps = sopObject['steps']
+
+        steps.forEach((step, step_index) => {
+            sop_steps_records.push([sop_id, step_index + 1, step])
+        })
+        
+    })
+    await dbService.insertBulk("sop_steps", sop_steps_records)
+
+    res.json({ "status": "success"})
+})
 
