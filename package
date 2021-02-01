@@ -33,6 +33,14 @@
     "html-webpack-plugin": "^3.2.0",
     "imagemin-mozjpeg": "^7.0.0",
     "imagemin-webpack-plugin": "^2.2.0",
+    
+    
+    
+    
+    
+    //link
+    
+    https://zeus.uat.digital/Home/LoginUser
     "lodash": "^4.17.10",
     "mini-css-extract-plugin": "^0.9.0",
     "multi-json-loader": "^0.2.1",
