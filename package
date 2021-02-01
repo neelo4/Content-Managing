@@ -85,3 +85,406 @@
   "mainModule": "common",
   "deploymentPath": "../../build/Web/Zeus.Web/assets"
 }
+
+
+
+
+
+
+
+
+
+
+
+//webpack
+
+
+
+const path = require('path');
+const fs = require('fs');
+const webpack = require('webpack');
+const HappyPack = require('happypack');
+const SpeedMeasurePlugin = require("speed-measure-webpack-plugin");
+const MiniCssExtractPlugin = require("mini-css-extract-plugin");
+const { CleanWebpackPlugin } = require('clean-webpack-plugin');
+const HtmlWebpackPlugin = require('html-webpack-plugin');
+const CopyWebpackPlugin = require('copy-webpack-plugin');
+const BrowserSyncPlugin = require('browser-sync-webpack-plugin');
+const ImageminPlugin = require('imagemin-webpack-plugin').default;
+const imageminMozjpeg = require('imagemin-mozjpeg');
+const multiJsonLoader = require('multi-json-loader');
+const smp = new SpeedMeasurePlugin();
+const happyThreadPool = HappyPack.ThreadPool({ size: 4 });
+const UglifyJsPlugin = require('uglifyjs-webpack-plugin');
+const PACKAGE = require('./package.json');
+const assetPath = PACKAGE.assetPath;
+const deploymentPath = PACKAGE.deploymentPath;
+
+
+
+let runMod = "development";
+let dest = assetPath;
+let statusMsg = '';
+
+
+if (process.argv.indexOf('--dev') === -1) {
+  statusMsg = 'Compilation for production started...';
+
+  if (process.argv.indexOf('--deploy') > -1) {
+    dest = deploymentPath;
+    statusMsg = 'Compilation for deployment started...';
+    runMod = 'deployment';
+  } else {
+    runMod = 'production'
+  }
+} else {
+  statusMsg = 'Running development build......';
+  runMod = 'development'
+}
+console.log(statusMsg);
+
+
+function loadJsonFiles(startPath, parentObj) {
+  var files = fs.readdirSync(startPath);
+
+  for (var i = 0; i < files.length; i++) {
+    var filename = path.join(startPath, files[i]);
+    var stat = fs.lstatSync(filename);
+    if (stat.isDirectory()) {
+      parentObj[`${files[i]}`] = multiJsonLoader.loadFiles(filename);
+      loadJsonFiles(filename, parentObj[`${files[i]}`]);
+    }
+  }
+}
+
+
+
+function findFilesInDir(startPath, filter) {
+
+  var results = [];
+
+  if (!fs.existsSync(startPath)) {
+    console.log("no dir ", startPath);
+    return;
+  }
+
+  var files = fs.readdirSync(startPath);
+  for (var i = 0; i < files.length; i++) {
+    var filename = path.join(startPath, files[i]);
+    var stat = fs.lstatSync(filename);
+    if (stat.isDirectory()) {
+      results = results.concat(findFilesInDir(filename, filter)); //recurse
+    }
+    else if ((filename.indexOf(filter) >= 0) && (filename.indexOf('_modules') === -1) && (filename.indexOf('_layouts') === -1)) {
+      //console.log('-- found: ',filename);
+      var actualFilename = filename.replace('src/', '');
+      actualFilename = actualFilename.replace(/src\\/g, '');
+      results.push(actualFilename);
+    }
+  }
+  return results;
+}
+
+function generateHtmlPlugins(templateDir) {
+  // Read files in template directory
+  const templateFiles = findFilesInDir(templateDir, '.pug');
+  return templateFiles.map(item => {
+    // Split names and extension
+    const parts = item.split('.')
+    const name = parts[0]
+    const extension = parts[1]
+    // Create new HTMLWebpackPlugin with options
+    return new HtmlWebpackPlugin({
+      filename: `${name}.html`,
+      template: path.resolve(__dirname, `${templateDir}/${name}.${extension}`),
+      cache: true,
+      minify: false,
+      hash: false,
+      inject: false,
+      alwaysWriteToDisk: true,
+      templateParameters(compilation) {
+        var siteData = multiJsonLoader.loadFiles('./src/_data')
+        loadJsonFiles('./src/_data', siteData);
+        return {
+          site: {
+            data: siteData
+          }
+        }
+      }
+    })
+  })
+}
+
+
+function generateModRules(envMode) {
+
+  const devModRules = [
+    {
+      test: /\.js$/,
+      exclude: /node_modules/,
+      use: "happypack/loader?id=js"
+    },
+    {
+      test: /\.(sa|sc|c)ss$/,
+      use: [
+        MiniCssExtractPlugin.loader,
+        {
+          loader: 'css-loader',
+          options: {
+            url: false,
+            sourceMap: true,
+          },
+        },
+        'postcss-loader',
+        'fast-sass-loader',
+      ],
+    },
+    {
+      test: /\.pug$/,
+      use: "happypack/loader?id=html"
+    }
+  ]
+
+  const prodModRules = [
+    {
+      test: /\.js$/,
+      exclude: /node_modules/,
+      use: "babel-loader?cacheDirectory"
+    },
+    {
+      test: /\.(sa|sc|c)ss$/,
+      use: [
+        MiniCssExtractPlugin.loader,
+        {
+          loader: 'css-loader',
+          options: {
+            url: false,
+            sourceMap: true,
+          },
+        },
+        'postcss-loader',
+        'fast-sass-loader',
+      ],
+    },
+    {
+      test: /\.pug$/,
+      use: "pug-loader?pretty=true"
+    }
+  ]
+
+
+  const deployModRules = [
+    {
+      test: /\.js$/,
+      exclude: /node_modules/,
+      use: "babel-loader?cacheDirectory"
+    },
+    {
+      test: /\.(sa|sc|c)ss$/,
+      use: [
+        MiniCssExtractPlugin.loader,
+        {
+          loader: 'css-loader',
+          options: {
+            url: false
+          }
+        },
+        'postcss-loader',
+        'fast-sass-loader',
+      ],
+    }
+  ]
+
+  if (envMode === 'production') {
+    return prodModRules;
+  } else if (envMode == 'deployment') {
+    return deployModRules;
+  } else {
+    return devModRules;
+  }
+}
+
+
+function generatePlugins(envMode) {
+
+  const devPlugins = [
+    new webpack.HotModuleReplacementPlugin(),
+
+    new HappyPack({
+      id: 'html',
+      loaders: ['pug-loader?pretty=true'],
+      threadPool: happyThreadPool
+    }),
+
+    new HappyPack({
+      id: 'js',
+      loaders: ['babel-loader?cacheDirectory'],
+      threadPool: happyThreadPool
+    }),
+
+    new BrowserSyncPlugin(
+      {
+        files: ['styles/**/*.css', '**/*.html', '!/assets/**/*'],
+        host: 'localhost',
+        port: 3001,
+        proxy: 'http://localhost:3000/'
+      },
+      {
+        reload: true,
+        injectCss: true
+      },
+
+    )
+  ]
+
+
+  const prodPlugins = [
+
+    new ImageminPlugin({
+      test: /\.(jpe?g|png|gif)$/i,
+      plugins: [
+        imageminMozjpeg({
+          quality: 70,
+          progressive: true
+        })
+      ]
+    })
+  ]
+
+
+  if (envMode === 'production') {
+    return prodPlugins;
+  } else if (envMode === 'deployment') {
+    return prodPlugins;
+  } else {
+    return devPlugins;
+  }
+}
+
+const htmlPlugins = generateHtmlPlugins('./src');
+
+const buildPlugins = generatePlugins(runMod);
+
+const moduleRules = generateModRules(runMod);
+
+
+
+
+//Bundling assets into microfrontend modules
+
+const mainModule = PACKAGE.mainModule,
+  modules = [...PACKAGE.subModules, mainModule];
+
+//Get entry points
+let modulesEntry = modules.reduce((acc, module) => {
+  return { ...acc, [module]: path.resolve(__dirname, `webpack-entry/entry-${module}.js`) }
+}, {})
+
+
+//Get copy rules for each module
+let modulesCopy = [];
+
+modules.forEach(module => {
+  modulesCopy = [
+    ...modulesCopy,
+    //Vendor folder in scripts
+    { context: `src/_scripts/${module}/`, from: `*/*`, to: `${dest}/${module}/scripts` },
+    { context: `src/_images/${module}/`, from: '*', ignore: ['README.md'], to: `${dest}/${module}/images` }
+  ]
+})
+
+//Get all copy rules
+const getCopyRules = function (envMode) {
+  let copyRules = [
+    { from: 'src/_fonts', to: `${dest}/${mainModule}/fonts` },
+    { context: `src/_icomoon/`, from: `*/fonts/*`, ignore: ['README.md'], to: `${dest}` },
+    { from: 'src/assets', to: `${dest}/${mainModule}`, ignore: ['README.md'] },
+    ...modulesCopy
+  ]
+
+  if (envMode === 'deployment') {
+    copyRules = [
+      ...copyRules,
+      { from: '**/*', ignore: ['{**/\_*,**/\_*/**}', '**/*.pug', 'assets/*', '*.ico'], context: 'src/' },
+    ]
+  } else {
+    //Dev or prod
+    copyRules = [
+      ...copyRules,
+      { from: 'src/_api', to: `apis` },
+      { from: 'src/_images/temp', to: `${dest}/${mainModule}/images/temp` },
+      { from: '**/*', ignore: ['{**/\_*,**/\_*/**}', '**/*.pug', 'assets/*'], context: 'src/' },
+    ]
+  }
+  return copyRules
+}
+
+//Ignore htmlPlugin for deployment mode
+const getPlugins = function (envMode) {
+  let pluginList = [
+    new CleanWebpackPlugin(),
+    new webpack.IgnorePlugin(/^jquery$/i),
+    new CopyWebpackPlugin(getCopyRules(envMode)),
+    // new webpack.ProvidePlugin({
+    //   $: 'jquery',
+    //   jQuery: 'jquery',
+    //   'window.jQuery': 'jquery',
+    //   $j: 'jquery'
+    // }),
+    new MiniCssExtractPlugin({
+      filename: `${dest}/[name]/styles/[name].css`,
+    })
+  ]
+
+  if (envMode === 'production') {
+    return pluginList.concat(htmlPlugins, buildPlugins);
+  } else if (envMode === 'deployment') {
+    return pluginList.concat(buildPlugins);
+  } else {
+    return pluginList.concat(htmlPlugins, buildPlugins);
+  }
+}
+
+
+module.exports = smp.wrap({
+  entry: modulesEntry,
+  mode: process.env.NODE_ENV,
+  output: {
+    filename: `${dest}/[name]/scripts/[name].js`,
+    path: path.resolve(__dirname, 'dist'),
+    publicPath: "/"
+  },
+  module: {
+    rules: moduleRules
+  },
+  plugins: getPlugins(runMod),
+  devServer: {
+    contentBase: path.resolve(__dirname, 'dist'),
+    watchContentBase: true,
+    publicPath: '/',
+    hot: false,
+    inline: true,
+    port: 3000,
+    setup(app) {
+      app.post('*', (req, res) => {
+        res.redirect(req.originalUrl)
+      })
+    }
+  },
+  resolve: {
+    modules: [
+      "node_modules"
+    ],
+    alias: {
+    }
+  },
+  optimization: {
+    minimizer: [
+      new UglifyJsPlugin({
+        test: /\.js(\?.*)?$/i,
+        extractComments: true,
+      }),
+    ],
+  },
+});
+
