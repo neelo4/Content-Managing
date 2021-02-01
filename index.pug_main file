@@ -1,0 +1,87 @@
+extends _layouts/base
+
+include _modules/atoms/input-set/input-set
+include _modules/atoms/password-visible/password-visible
+
+include _modules/molecules/auth-logo/auth-logo
+include _modules/molecules/tabs-bar/tabs-bar
+
+include _modules/organisms/auth-form/auth-form
+
+
+block config
+  - var baseUrl ='./'
+  - var pageTitle = 'GE Zeus'
+
+block content
+  +auth-form({
+    title: "Login",
+    formUrl: "/",
+    submitText: 'Login',
+    formError : {
+      text: 'Sorry, your account has been blocked. Please request for reactivation.',
+      link : {
+        url: '/auth-request',
+        text: 'Request',
+        title: 'Request account to be unblocked in request unblock page'
+      }
+    },
+    lastLinks: [
+      {
+      url: '/request-external-user',
+      title: 'Go to request account page',
+      text: "Don't have an account?"
+      }
+    ]
+  })(data-ad-action="/dashboard-ad" data-external-action="/dashboard-external")
+    +tabs-bar({
+      name: 'LoginType',
+      defaultValue: 'Active Directory',
+      tabs: [
+        {text: 'Active Directory', value: 'Active Directory'},
+        {text: 'External User', value: 'External User', __tabClass: 'tabs-bar__tab--external-user'}
+      ]
+    }).tabs-bar--clear
+
+    .auth-form__row
+      label(for="login__username") Username
+      a.auth-form__row-link(href="/forgot-username") Forgot Username?
+
+    +input-set({
+      id: 'login__username',
+      name: 'LoginUsername'
+    }).input-set--blue-bg
+
+    .auth-form__row
+      label(for="login__password") Password
+      a.auth-form__row-link(href="/forgot-password") Forgot Password?
+
+    +password-visible({
+      id: 'login__password',
+      name: 'LoginPassword'
+    }).input-set.input-set--blue-bg
+
+
+
+  +auth-logo({
+    links:[
+      {
+        title: 'Go to Privacy Policy page',
+        text: 'Privacy Policy'
+      },
+      {
+        title: 'Go to Contact page',
+        text: 'Contact'
+      }
+    ]
+  })(style="background-image:url('/assets/common/images/temp/auth-bg.jpg')")
+
+
+block moduleStylesheets
+  link(rel='stylesheet' class="module-style" href='/assets/authentication/styles/authentication.css')
+
+block moduleScripts
+  script(class="module-script" src= '/assets/authentication/scripts/authentication.js')
+
+
+
