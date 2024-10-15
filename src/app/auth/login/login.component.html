@@ -1,49 +1,29 @@
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
-import { render } from '../../../test-utils/renderWithProviders';
+import TwoColumnLayout from '../../../client/components/shared/TwoColumnLayout';
+import QuickLinks from '../../components/quick-links/QuickLinks';
 import FaqSection from './FaqSection';
 
-jest.mock('react-router-dom', () => ({
-  useNavigate: jest.fn(),
-}));
+const ContactUsUplift: React.FC<BrandDataProps> = () => {
+  return (
+    <div className="container mx-auto px-4">
+      <TwoColumnLayout
+        leftHandSide={
+          <div className="w-full md:w-2/3 pr-0 md:pr-8">
+            <FaqSection />
+          </div>
+        }
+        rightHandSide={
+          <div className="w-full md:w-1/3 mt-8 md:mt-0">
+            <div className="bg-white p-6 rounded-lg shadow-md">
+              <h2 className="text-xl font-semibold mb-4">Quick Links</h2>
+              <QuickLinks />
+            </div>
+          </div>
+        }
+      />
+    </div>
+  );
+};
 
-const mockTt = jest.fn(() => ({
-  categories: {
-    payments: [
-      {
-        question: "How do I make changes to my payment details?",
-        answer: "1. Go to the policies page or the home page\n2. Click View Policy\n3. Then you can either:\n\t1. Click Edit under Payment Method to change account, OR\n\t2. Click Edit under Payment Plan to edit payment date or frequency.",
-      }
-    ]
-  }
-}));
-
-jest.mock('@iag-common/iag-brand-context', () => ({
-  ...jest.requireActual('@iag-common/iag-brand-context'),
-  tt: () => mockTt,
-}));
-
-describe('FaqSection', () => {
-  test('expands and collapses FAQ items when clicked', () => {
-    render(<FaqSection />);
-    
-    // Find the first FAQ item (AccordionItem)
-    const faqItem = screen.getByRole('button', { name: /How do I make changes to my payment details?/i });
-    
-    // Initially, the content should not be visible
-    expect(screen.queryByText(/1. Go to the policies page/)).not.toBeInTheDocument();
-    
-    // Click to expand
-    fireEvent.click(faqItem);
-    
-    // Check if the content is now visible
-    expect(screen.getByText(/1. Go to the policies page/)).toBeInTheDocument();
-    
-    // Click to collapse
-    fireEvent.click(faqItem);
-    
-    // Check if the content is now hidden
-    expect(screen.queryByText(/1. Go to the policies page/)).not.toBeInTheDocument();
-  });
-});
+export default connectIagBrand()(ContactUsUplift);
