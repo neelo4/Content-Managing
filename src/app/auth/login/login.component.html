@@ -1,30 +1,70 @@
-import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import React from 'react';
-import QuickLinks from '../../components/quick-links/QuickLinks';
-import PageLayout from '../../components/shared/layout/PageLayout';
-import FaqSection from './FaqSection';
-import NomiBanner from './NomiBanner';
+import { screen } from '@testing-library/react';
+import '@testing-library/jest-dom/extend-expect';
+import { render } from '../../../test-utils/renderWithProviders';
+import ContactUsUplift from './ContactUsUplift';
 
-const ContactUsUplift: React.FC<BrandDataProps> = () => {
-  return (
-    <PageLayout
-      leftSection={
-        <div className="w-full">
-          <FaqSection />
-        </div>
-      }
-      rightSection={
-        <div className="p-6">
-          <div>
-            <QuickLinks />
-          </div>
-          <div className="md:flex hidden">
-            <NomiBanner />
-          </div>
-        </div>
-      }
-    />
-  );
-};
+// Mock the subcomponents
+jest.mock('./FaqSection', () => () => <div data-testid="faq-section">FAQ Section</div>);
+jest.mock('../../components/quick-links/QuickLinks', () => () => <div data-testid="quick-links">Quick Links</div>);
+jest.mock('./NomiBanner', () => () => <div data-testid="nomi-banner">Nomi Banner</div>);
 
-export default connectIagBrand()(ContactUsUplift);
+// Mock the PageLayout component
+jest.mock('../../components/shared/layout/PageLayout', () => ({ leftSection, rightSection }) => (
+  <div>
+    <div data-testid="left-section">{leftSection}</div>
+    <div data-testid="right-section">{rightSection}</div>
+  </div>
+));
+
+// Mock the BrandDataProps and connectIagBrand
+jest.mock('@iag-common/iag-brand-context', () => ({
+  connectIagBrand: () => (Component) => Component,
+}));
+
+describe('ContactUsUplift', () => {
+  beforeEach(() => {
+    render(<ContactUsUplift />);
+  });
+
+  test('renders PageLayout component', () => {
+    expect(screen.getByTestId('left-section')).toBeInTheDocument();
+    expect(screen.getByTestId('right-section')).toBeInTheDocument();
+  });
+
+  test('renders FaqSection in the left section', () => {
+    const leftSection = screen.getByTestId('left-section');
+    expect(within(leftSection).getByTestId('faq-section')).toBeInTheDocument();
+  });
+
+  test('renders QuickLinks in the right section', () => {
+    const rightSection = screen.getByTestId('right-section');
+    expect(within(rightSection).getByTestId('quick-links')).toBeInTheDocument();
+  });
+
+  test('renders NomiBanner in the right section', () => {
+    const rightSection = screen.getByTestId('right-section');
+    expect(within(rightSection).getByTestId('nomi-banner')).toBeInTheDocument();
+  });
+
+  test('NomiBanner is hidden on mobile screens', () => {
+    const nomiBanner = screen.getByTestId('nomi-banner');
+    expect(nomiBanner.parentElement).toHaveClass('md:flex hidden');
+  });
+});
+
+// Additional test for NomiBanner component
+describe('NomiBanner', () => {
+  test('renders NomiBanner component correctly', () => {
+    const mockTt = jest.fn((key) => `Translated ${key}`);
+    render(<NomiBanner tt={mockTt} />);
+
+    expect(screen.getByAltText('onboarding-image')).toBeInTheDocument();
+    expect(screen.getByText('Translated pages.nomiBannerText.getHelp')).toBeInTheDocument();
+    expect(screen.getByText('Translated pages.nomiBannerText.gotQuestion')).toBeInTheDocument();
+    
+    const button = screen.getByRole('button', { name: 'Translated pages.nomiBannerText.button' });
+    expect(button).toBeInTheDocument();
+    expect(button).toHaveAttribute('data-tracking-name', 'personal-contact-us');
+  });
+});
