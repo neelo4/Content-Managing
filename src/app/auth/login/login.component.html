@@ -1,65 +1,9 @@
-import React from 'react';
-import { screen, fireEvent } from '@testing-library/react';
-import '@testing-library/jest-dom/extend-expect';
-import { render } from '../../../test-utils/renderWithProviders';
-import NomiBanner from './NomiBanner';
+@layer components {
+  .faq-accordion > div > h2 {
+    @apply border-b pb-2 mb-4;
+  }
 
-// Mock the BrandDataProps and connectIagBrand
-jest.mock('@iag-common/iag-brand-context', () => ({
-  connectIagBrand: () => (Component) => Component,
-}));
-
-// Mock the Button component
-jest.mock('@iag/chroma-react-ui.button', () => ({
-  Button: ({ children, ...props }) => <button {...props}>{children}</button>,
-}));
-
-// Mock the nomiImg import
-jest.mock('../../assets/images/nomi-img.svg', () => 'mocked-nomi-image.svg');
-
-describe('NomiBanner', () => {
-  const mockTt = jest.fn((key) => `Translated ${key}`);
-  
-  beforeEach(() => {
-    render(<NomiBanner tt={mockTt} />);
-    // Mock the window.Inq object
-    window.Inq = { fireCustomEvent: jest.fn() };
-  });
-
-  test('renders NomiBanner component correctly', () => {
-    expect(screen.getByAltText('onboarding-image')).toBeInTheDocument();
-    expect(screen.getByAltText('onboarding-image')).toHaveAttribute('src', 'mocked-nomi-image.svg');
-    expect(screen.getByText('Translated pages.nomiBannerText.getHelp')).toBeInTheDocument();
-    expect(screen.getByText('Translated pages.nomiBannerText.gotQuestion')).toBeInTheDocument();
-    
-    const button = screen.getByRole('button', { name: 'Translated pages.nomiBannerText.button' });
-    expect(button).toBeInTheDocument();
-    expect(button).toHaveAttribute('data-tracking-name', 'personal-contact-us');
-  });
-
-  test('calls translation function with correct keys', () => {
-    expect(mockTt).toHaveBeenCalledWith('pages.nomiBannerText.getHelp');
-    expect(mockTt).toHaveBeenCalledWith('pages.nomiBannerText.gotQuestion');
-    expect(mockTt).toHaveBeenCalledWith('pages.nomiBannerText.button');
-  });
-
-  test('fires custom event when button is clicked', () => {
-    const button = screen.getByRole('button', { name: 'Translated pages.nomiBannerText.button' });
-    fireEvent.click(button);
-    expect(window.Inq.fireCustomEvent).toHaveBeenCalledWith('launchChatButton');
-  });
-
-  test('applies correct CSS classes', () => {
-    const container = screen.getByRole('banner');
-    expect(container).toHaveClass('nomi p-6');
-    
-    const image = screen.getByAltText('onboarding-image');
-    expect(image).toHaveClass('mb-4');
-    
-    const heading = screen.getByRole('heading', { level: 4 });
-    expect(heading).toHaveClass('font-medium mb-4 text-xl');
-    
-    const paragraph = screen.getByText('Translated pages.nomiBannerText.gotQuestion');
-    expect(paragraph).toHaveClass('font-normal text-base mb-4');
-  });
-});
+  .faq-accordion > div:last-child > div:last-child {
+    @apply border-b-0;
+  }
+}
