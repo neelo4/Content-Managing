@@ -1,28 +1,29 @@
 import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
 import React from 'react';
-import TwoColumnLayout from '../../../client/components/shared/TwoColumnLayout';
 import QuickLinks from '../../components/quick-links/QuickLinks';
+import PageLayout from '../../components/shared/layout/PageLayout';
 import FaqSection from './FaqSection';
+import NomiBanner from './NomiBanner';
 
 const ContactUsUplift: React.FC<BrandDataProps> = () => {
   return (
-    <div className="container mx-auto px-4">
-      <TwoColumnLayout
-        leftHandSide={
-          <div className="w-full lg:w-3/4 pr-0 lg:pr-8">
-            <FaqSection />
+    <PageLayout
+      leftSection={
+        <div className="w-full">
+          <FaqSection />
+        </div>
+      }
+      rightSection={
+        <div className="p-6">
+          <div>
+            <QuickLinks />
           </div>
-        }
-        rightHandSide={
-          <div className="w-full lg:w-1/4 mt-8 lg:mt-0">
-            <div className="bg-white p-6 rounded-lg shadow-md">
-              <h2 className="text-xl font-semibold mb-4">Quick Links</h2>
-              <QuickLinks />
-            </div>
+          <div className="md:flex hidden">
+            <NomiBanner />
           </div>
-        }
-      />
-    </div>
+        </div>
+      }
+    />
   );
 };
 
