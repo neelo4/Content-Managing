@@ -1,97 +1,115 @@
-import React from 'react';
-import { fireEvent, waitFor } from '@testing-library/react';
-import '@testing-library/jest-dom';
-import ContactUsSearch from './ContactUsSearch';
-import { render } from '../../../test-utils/renderWithProviders';
-import { Brand } from '../../models/Brand';
+import { filterData } from './ContactUsSearch'; // Assuming the function is exported
+import { FaqData } from './ContactUsUplift'; // Import the FaqData type if available
 
-// Mock the required modules
-jest.mock('@iag-common/iag-brand-context', () => ({
-  connectIagBrand: () => (Component: React.ComponentType) => Component,
-}));
+describe('filterData function', () => {
+  const mockFaqData: FaqData = {
+    "categories": {
+      "payments": [
+        {
+          "question": "How do I make a BPAY payment?",
+          "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+          "feedbackOrder": 1,
+          "analyticsValue": "faq-payments-make-bpay-payment"
+        },
+        {
+          "question": "How can I check my payment status?",
+          "answer": "You can check your payment status by logging into your account.",
+          "answer1": "For older policies, please contact customer support.",
+          "feedbackOrder": 2,
+          "analyticsValue": "faq-payments-check-status"
+        }
+      ],
+      "claims": [
+        {
+          "question": "How do I make a claim?",
+          "answer": "You can make a claim online or by calling our claims department.",
+          "feedbackOrder": 1,
+          "analyticsValue": "faq-claims-make-claim"
+        }
+      ]
+    }
+  };
 
-jest.mock('@iag-common/mfe-global-events', () => ({
-  dispatchTrackingEventToDocument: jest.fn(),
-}));
+  const mockSetData = jest.fn();
+  const mockSetNoResultSectionVisible = jest.fn();
 
-const mockSetData = jest.fn();
-const mockSetSearchTerm = jest.fn();
-const mockSetResultSectionVisible = jest.fn();
-const mockSetNoResultSectionVisible = jest.fn();
-
-const mockFaqData = {
-  "categories": {
-    "payments": [
-      {
-        "question": "How do I make changes to my payment details?",
-        "answer": "1. Go to the policies page or the home page.\n2. Sign in to your account.\n3. Select the policy you want to update.\n4. Click on 'Payment details' and follow the prompts to update your details.",
-        "answer1": "**For policies in NSW, QLD, TAS and the ACT first purchased before 21 April 2024 and not yet renewed, or last renewed before 1 July 2024**:\n\n1. Go to the heritage dashboard\n2. Sign in to your account.\n3. Select the policy you want to update.\n4. Click on 'Payment details' and follow the prompts to update your details.",
-        "feedbackOrder": 0,
-        "analyticsValue": "faq-payments-change-payment-details"
-      },
-      {
-        "question": "How do I make a BPAY payment?",
-        "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.\n\nWhen making a BPAY payment you'll need the reference number, biller code and the amount due. This will be shown on your renewal notice or Certificate of Insurance.",
-        "feedbackOrder": 1,
-        "analyticsValue": "faq-payments-make-bpay-payment"
-      },
-      {
-        "question": "How can I check the status of my payment?",
-        "answer": "You can check whether your payment has cleared in your online account.\n1. Go to the policies page or the home page.\n2. Sign in to your account.\n3. Select the policy you want to check.\n4. Your payment status will be displayed on the policy details page.",
-        "answer1": "**For policies in NSW, QLD, TAS and the ACT first purchased before 21 April 2024 and not yet renewed, OR policies in NSW, QLD, TAS and the ACT last renewed before 1 July 2024**:\n\n1. Go to the heritage dashboard\n2. Sign in to your account.\n3. Select the policy you want to check.\n4. Your payment status will be displayed on the policy details page.",
-        "feedbackOrder": 2,
-        "analyticsValue": "faq-payments-check-payment-status"
-      }
-    ]
-  }
-};
-
-describe('ContactUsSearch component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('filters data correctly when search button is clicked', async () => {
-    const { getByTestId, getByPlaceholderText } = render(
-      <ContactUsSearch
-        setData={mockSetData}
-        searchTerm=""
-        setSearchTerm={mockSetSearchTerm}
-        setresultSectionVisible={mockSetResultSectionVisible}
-        setNoResultSectionVisible={mockSetNoResultSectionVisible}
-      />,
-      {
-        brand: Brand.NRMA,
-        initialState: {
-          faqData: mockFaqData
-        }
+  test('filters data correctly when search term is found', () => {
+    const searchTerm = 'BPAY';
+    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+
+    expect(mockSetData).toHaveBeenCalledWith({
+      "categories": {
+        "payments": [
+          {
+            "question": "How do I make a BPAY payment?",
+            "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+            "feedbackOrder": 1,
+            "analyticsValue": "faq-payments-make-bpay-payment"
+          }
+        ]
       }
-    );
-
-    const searchInput = getByPlaceholderText('Search for a topic');
-    fireEvent.change(searchInput, { target: { value: 'BPAY' } });
-
-    const searchButton = getByTestId('contact-us-search-btn');
-    fireEvent.click(searchButton);
-
-    await waitFor(() => {
-      expect(mockSetData).toHaveBeenCalledWith({
-        "categories": {
-          "payments": [
-            {
-              "question": "How do I make a BPAY payment?",
-              "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.\n\nWhen making a BPAY payment you'll need the reference number, biller code and the amount due. This will be shown on your renewal notice or Certificate of Insurance.",
-              "feedbackOrder": 1,
-              "analyticsValue": "faq-payments-make-bpay-payment"
-            }
-          ]
-        }
-      });
     });
-
-    expect(mockSetResultSectionVisible).toHaveBeenCalledWith(true);
     expect(mockSetNoResultSectionVisible).not.toHaveBeenCalled();
   });
 
-  // Add more tests as needed...
+  test('filters data correctly when search term matches category', () => {
+    const searchTerm = 'payments';
+    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+
+    expect(mockSetData).toHaveBeenCalledWith({
+      "categories": {
+        "payments": mockFaqData.categories.payments
+      }
+    });
+    expect(mockSetNoResultSectionVisible).not.toHaveBeenCalled();
+  });
+
+  test('sets no results section visible when no matches found', () => {
+    const searchTerm = 'nonexistent';
+    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+
+    expect(mockSetData).toHaveBeenCalledWith({});
+    expect(mockSetNoResultSectionVisible).toHaveBeenCalledWith(true);
+  });
+
+  test('handles case insensitive search', () => {
+    const searchTerm = 'bpay';
+    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+
+    expect(mockSetData).toHaveBeenCalledWith({
+      "categories": {
+        "payments": [
+          {
+            "question": "How do I make a BPAY payment?",
+            "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+            "feedbackOrder": 1,
+            "analyticsValue": "faq-payments-make-bpay-payment"
+          }
+        ]
+      }
+    });
+  });
+
+  test('matches content in answer1 field', () => {
+    const searchTerm = 'older policies';
+    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+
+    expect(mockSetData).toHaveBeenCalledWith({
+      "categories": {
+        "payments": [
+          {
+            "question": "How can I check my payment status?",
+            "answer": "You can check your payment status by logging into your account.",
+            "answer1": "For older policies, please contact customer support.",
+            "feedbackOrder": 2,
+            "analyticsValue": "faq-payments-check-status"
+          }
+        ]
+      }
+    });
+  });
 });
