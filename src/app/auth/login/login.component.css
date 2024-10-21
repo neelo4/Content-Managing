@@ -67,6 +67,10 @@ const FaqSection: React.FC<BrandDataProps & FaqSectionProps> = ({
   const isCrodsAvailable = getCustomerCheck(CustomerIdentityType.CRODS);
   const isHuonAvailable = getCustomerCheck(CustomerIdentityType.HUON);
 
+  const getAnalyticsValue = (analyticsValue: string) => {
+    return `accordion-${analyticsValue}-button`;
+  };
+
   return (
     <>
       {noResultSectionVisible && <FaqNoResultsSection onClearResults={onClearResults} searchTerm={searchTerm} />}
@@ -84,23 +88,27 @@ const FaqSection: React.FC<BrandDataProps & FaqSectionProps> = ({
               {category.charAt(0).toUpperCase() + category.slice(1)}
             </h2>
             {Array.isArray(questions) &&
-              questions.map((item: FaqItem, questionIndex: number) => (
-                <AccordionItem
-                  data-testid="faq-accordion"
-                  key={`accordion-${item.analyticsValue}-button`}
-                  id={`item-${category}-${questionIndex}`}
-                  button={<div data-testid="faq-question">{item.question}</div>}
-                  content={
-                    <div data-testid="faq-answer">
-                      {t(item?.answer)}
-                      {(isCrodsAvailable || isHuonAvailable) && item?.answer1 && t(item?.answer1, { heritageAppLink })}
-                      {renderFeedbackSection(category, item)}
-                    </div>
-                  }
-                  onShow={() => setIsAccordionExpanded(true)}
-                  onHide={() => setIsAccordionExpanded(false)}
-                />
-              ))}
+              questions.map((item: FaqItem, questionIndex: number) => {
+                const analyticsValue = getAnalyticsValue(item.analyticsValue);
+                return (
+                  <AccordionItem
+                    data-testid="faq-accordion"
+                    key={analyticsValue}
+                    id={`item-${category}-${questionIndex}`}
+                    button={<div data-testid="faq-question">{item.question}</div>}
+                    content={
+                      <div data-testid="faq-answer">
+                        {t(item?.answer)}
+                        {(isCrodsAvailable || isHuonAvailable) && item?.answer1 && t(item?.answer1, { heritageAppLink })}
+                        {renderFeedbackSection(category, item)}
+                      </div>
+                    }
+                    onShow={() => setIsAccordionExpanded(true)}
+                    onHide={() => setIsAccordionExpanded(false)}
+                    analyticsValue={analyticsValue}
+                  />
+                );
+              })}
           </React.Fragment>
         ))}
       </Accordion>
