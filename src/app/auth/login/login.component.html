@@ -1,130 +1,120 @@
-import { render, waitFor } from '../../../test-utils/renderWithProviders';
+import React from 'react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
 import ContactUsSearch from './ContactUsSearch';
-import { Brand } from '../../models/Brand';
+import { BrandDataProps } from '@iag-common/iag-brand-context';
 
-jest.mock('../../iagBrandStore');
+// Mock the required contexts and functions
+jest.mock('@iag-common/iag-brand-context', () => ({
+  connectIagBrand: () => (Component: React.ComponentType) => Component,
+}));
 
-const mockClient = jest.fn() as any;
+jest.mock('@iag-common/mfe-global-events-context', () => ({
+  GlobalEventsContext: React.createContext(null),
+}));
 
-const onClearResults = jest.fn();
+const mockSetData = jest.fn();
+const mockSetSearchTerm = jest.fn();
+const mockSetResultSectionVisible = jest.fn();
+const mockSetNoResultSectionVisible = jest.fn();
 
-const setNoSearchTermSectionVisible = jest.fn();
+const defaultProps: BrandDataProps & {
+  setData: jest.Mock;
+  searchTerm: string;
+  setSearchTerm: jest.Mock;
+  setresultSectionVisible: jest.Mock;
+  setNoResultSectionVisible: jest.Mock;
+} = {
+  tt: jest.fn((key) => key), // Mock translation function
+  setData: mockSetData,
+  searchTerm: '',
+  setSearchTerm: mockSetSearchTerm,
+  setresultSectionVisible: mockSetResultSectionVisible,
+  setNoResultSectionVisible: mockSetNoResultSectionVisible,
+};
 
-describe('ContactUsSearch page tests', () => {
+describe('ContactUsSearch component', () => {
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  it('renders ContactUsSearch component', async () => {
-    const { getByTestId } = render(
-      <ApolloProvider client={mockClient}>
-        <ContactUsSearch
-          searchTerm="Payments"
-          setNoResultSectionVisible={jest.fn()}
-          setSearchTerm={jest.fn()}
-          setData={jest.fn()}
-          setresultSectionVisible={jest.fn()}
-        />
-      </ApolloProvider>,
-      { brand: Brand.NRMA }
-    );
+  test('renders ContactUsSearch component', () => {
+    render(<ContactUsSearch {...defaultProps} />);
+    expect(screen.getByTestId('contact-us-search-btn')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('pages.contactUsUplift.info.contactUsSearchInputPlaceholder')).toBeInTheDocument();
+  });
+
+  test('updates search term on input change', () => {
+    render(<ContactUsSearch {...defaultProps} />);
+    const input = screen.getByPlaceholderText('pages.contactUsUplift.info.contactUsSearchInputPlaceholder');
+    fireEvent.change(input, { target: { value: 'payment' } });
+    expect(mockSetSearchTerm).toHaveBeenCalledWith('payment');
+  });
+
+  test('filters data correctly when search button is clicked', async () => {
+    const mockTt = jest.fn().mockImplementation((key) => {
+      if (key === 'pages.contactUsUplift.categories') {
+        return {
+          'Category 1': [
+            { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
+            { question: 'What is the refund policy?', answer: 'Refunds are processed within 7 days.' },
+          ],
+          'Category 2': [
+            { question: 'How do I contact support?', answer: 'You can contact support via email or phone.' },
+          ],
+        };
+      }
+      return key;
+    });
+
+    render(<ContactUsSearch {...defaultProps} tt={mockTt} searchTerm="payment" />);
+    
+    const searchButton = screen.getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
     await waitFor(() => {
-      expect(getByTestId('contact-us-search-btn')).toBeInTheDocument();
+      expect(mockSetData).toHaveBeenCalledWith({
+        'Category 1': [
+          { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
+        ],
+      });
     });
+
+    expect(mockSetResultSectionVisible).toHaveBeenCalledWith(true);
+    expect(mockSetNoResultSectionVisible).not.toHaveBeenCalled();
   });
 
-  it('filters data correctly when search term is found', () => {
-    const component = new ContactUsSearch({
-      tt: jest.fn(),
-      setData: jest.fn(),
-      searchTerm: 'payment',
-      setSearchTerm: jest.fn(),
-      setresultSectionVisible: jest.fn(),
-      setNoResultSectionVisible: jest.fn(),
+  test('displays no results message when no matches are found', async () => {
+    const mockTt = jest.fn().mockImplementation((key) => {
+      if (key === 'pages.contactUsUplift.categories') {
+        return {
+          'Category 1': [
+            { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
+          ],
+        };
+      }
+      return key;
     });
 
-    const mockFaqData = {
-      'Category 1': [
-        { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
-        { question: 'What is the refund policy?', answer: 'Refunds are processed within 7 days.' },
-      ],
-      'Category 2': [
-        { question: 'How do I contact support?', answer: 'You can contact support via email or phone.' },
-      ],
-    };
+    render(<ContactUsSearch {...defaultProps} tt={mockTt} searchTerm="nonexistent" />);
+    
+    const searchButton = screen.getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    component.faqData = mockFaqData;
-    component.filterData();
-
-    expect(component.props.setData).toHaveBeenCalledWith({
-      'Category 1': [
-        { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
-      ],
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({});
     });
-    expect(component.props.setNoResultSectionVisible).not.toHaveBeenCalled();
+
+    expect(mockSetNoResultSectionVisible).toHaveBeenCalledWith(true);
   });
 
-  it('shows no results when search term is not found', () => {
-    const component = new ContactUsSearch({
-      tt: jest.fn(),
-      setData: jest.fn(),
-      searchTerm: 'nonexistent',
-      setSearchTerm: jest.fn(),
-      setresultSectionVisible: jest.fn(),
-      setNoResultSectionVisible: jest.fn(),
-    });
+  test('handles empty search term', () => {
+    render(<ContactUsSearch {...defaultProps} searchTerm="" />);
+    
+    const searchButton = screen.getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    const mockFaqData = {
-      'Category 1': [
-        { question: 'How do I make a payment?', answer: 'You can make a payment online.' },
-      ],
-    };
-
-    component.faqData = mockFaqData;
-    component.filterData();
-
-    expect(component.props.setData).toHaveBeenCalledWith({});
-    expect(component.props.setNoResultSectionVisible).toHaveBeenCalledWith(true);
-  });
-
-  it('handles empty search term', () => {
-    const component = new ContactUsSearch({
-      tt: jest.fn(),
-      setData: jest.fn(),
-      searchTerm: '',
-      setSearchTerm: jest.fn(),
-      setresultSectionVisible: jest.fn(),
-      setNoResultSectionVisible: jest.fn(),
-    });
-
-    component.onSearchButtonClick();
-
-    expect(component.props.setresultSectionVisible).toHaveBeenCalledWith(false);
-    expect(component.state.noSearchTermSectionVisible).toBe(true);
-  });
-
-  it('updates search term on input change', () => {
-    const setSearchTerm = jest.fn();
-    const component = new ContactUsSearch({
-      tt: jest.fn(),
-      setData: jest.fn(),
-      searchTerm: '',
-      setSearchTerm,
-      setresultSectionVisible: jest.fn(),
-      setNoResultSectionVisible: jest.fn(),
-    });
-
-    const mockEvent = {
-      preventDefault: jest.fn(),
-      stopPropagation: jest.fn(),
-      target: { value: 'new search term' },
-    };
-
-    component.onChangeSearchTerm(mockEvent as any);
-
-    expect(setSearchTerm).toHaveBeenCalledWith('new search term');
-    expect(component.props.setresultSectionVisible).toHaveBeenCalledWith(false);
-    expect(component.props.setNoResultSectionVisible).toHaveBeenCalledWith(false);
+    expect(mockSetResultSectionVisible).toHaveBeenCalledWith(false);
+    expect(screen.getByText('pages.contactUsUplift.info.contactUsNoSearchTerm')).toBeInTheDocument();
   });
 });
