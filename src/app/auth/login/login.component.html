@@ -1,115 +1,172 @@
-import { filterData } from './ContactUsSearch'; // Assuming the function is exported
-import { FaqData } from './ContactUsUplift'; // Import the FaqData type if available
+import React from 'react';
+import { fireEvent, waitFor } from '@testing-library/react';
+import '@testing-library/jest-dom';
+import ContactUsSearch from './ContactUsSearch';
+import { render } from '../../../test-utils/renderWithProviders';
+import { Brand } from '../../models/Brand';
 
-describe('filterData function', () => {
-  const mockFaqData: FaqData = {
-    "categories": {
-      "payments": [
-        {
-          "question": "How do I make a BPAY payment?",
-          "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
-          "feedbackOrder": 1,
-          "analyticsValue": "faq-payments-make-bpay-payment"
-        },
-        {
-          "question": "How can I check my payment status?",
-          "answer": "You can check your payment status by logging into your account.",
-          "answer1": "For older policies, please contact customer support.",
-          "feedbackOrder": 2,
-          "analyticsValue": "faq-payments-check-status"
+// Mock the required modules
+jest.mock('@iag-common/iag-brand-context', () => ({
+  connectIagBrand: () => (Component: React.ComponentType) => Component,
+}));
+
+jest.mock('@iag-common/mfe-global-events', () => ({
+  dispatchTrackingEventToDocument: jest.fn(),
+}));
+
+const mockSetData = jest.fn();
+const mockSetSearchTerm = jest.fn();
+const mockSetResultSectionVisible = jest.fn();
+const mockSetNoResultSectionVisible = jest.fn();
+
+const mockFaqData = {
+  categories: {
+    payments: [
+      {
+        question: "How do I make a BPAY payment?",
+        answer: "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+        feedbackOrder: 1,
+        analyticsValue: "faq-payments-make-bpay-payment"
+      },
+      {
+        question: "How can I check my payment status?",
+        answer: "You can check your payment status by logging into your account.",
+        answer1: "For older policies, please contact customer support.",
+        feedbackOrder: 2,
+        analyticsValue: "faq-payments-check-status"
+      }
+    ],
+    claims: [
+      {
+        question: "How do I make a claim?",
+        answer: "You can make a claim online or by calling our claims department.",
+        feedbackOrder: 1,
+        analyticsValue: "faq-claims-make-claim"
+      }
+    ]
+  }
+};
+
+describe('ContactUsSearch component filtering behavior', () => {
+  const renderComponent = (searchTerm = '') => {
+    return render(
+      <ContactUsSearch
+        setData={mockSetData}
+        searchTerm={searchTerm}
+        setSearchTerm={mockSetSearchTerm}
+        setresultSectionVisible={mockSetResultSectionVisible}
+        setNoResultSectionVisible={mockSetNoResultSectionVisible}
+      />,
+      {
+        brand: Brand.NRMA,
+        initialState: {
+          faqData: mockFaqData
         }
-      ],
-      "claims": [
-        {
-          "question": "How do I make a claim?",
-          "answer": "You can make a claim online or by calling our claims department.",
-          "feedbackOrder": 1,
-          "analyticsValue": "faq-claims-make-claim"
-        }
-      ]
-    }
+      }
+    );
   };
-
-  const mockSetData = jest.fn();
-  const mockSetNoResultSectionVisible = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
   });
 
-  test('filters data correctly when search term is found', () => {
-    const searchTerm = 'BPAY';
-    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+  test('filters data correctly when search term is found', async () => {
+    const { getByTestId } = renderComponent('BPAY');
+    
+    const searchButton = getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    expect(mockSetData).toHaveBeenCalledWith({
-      "categories": {
-        "payments": [
-          {
-            "question": "How do I make a BPAY payment?",
-            "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
-            "feedbackOrder": 1,
-            "analyticsValue": "faq-payments-make-bpay-payment"
-          }
-        ]
-      }
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({
+        categories: {
+          payments: [
+            {
+              question: "How do I make a BPAY payment?",
+              answer: "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+              feedbackOrder: 1,
+              analyticsValue: "faq-payments-make-bpay-payment"
+            }
+          ]
+        }
+      });
     });
+
+    expect(mockSetResultSectionVisible).toHaveBeenCalledWith(true);
     expect(mockSetNoResultSectionVisible).not.toHaveBeenCalled();
   });
 
-  test('filters data correctly when search term matches category', () => {
-    const searchTerm = 'payments';
-    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+  test('filters data correctly when search term matches category', async () => {
+    const { getByTestId } = renderComponent('payments');
+    
+    const searchButton = getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    expect(mockSetData).toHaveBeenCalledWith({
-      "categories": {
-        "payments": mockFaqData.categories.payments
-      }
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({
+        categories: {
+          payments: mockFaqData.categories.payments
+        }
+      });
     });
+
+    expect(mockSetResultSectionVisible).toHaveBeenCalledWith(true);
     expect(mockSetNoResultSectionVisible).not.toHaveBeenCalled();
   });
 
-  test('sets no results section visible when no matches found', () => {
-    const searchTerm = 'nonexistent';
-    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+  test('sets no results section visible when no matches found', async () => {
+    const { getByTestId } = renderComponent('nonexistent');
+    
+    const searchButton = getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    expect(mockSetData).toHaveBeenCalledWith({});
-    expect(mockSetNoResultSectionVisible).toHaveBeenCalledWith(true);
-  });
-
-  test('handles case insensitive search', () => {
-    const searchTerm = 'bpay';
-    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
-
-    expect(mockSetData).toHaveBeenCalledWith({
-      "categories": {
-        "payments": [
-          {
-            "question": "How do I make a BPAY payment?",
-            "answer": "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
-            "feedbackOrder": 1,
-            "analyticsValue": "faq-payments-make-bpay-payment"
-          }
-        ]
-      }
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({});
+      expect(mockSetNoResultSectionVisible).toHaveBeenCalledWith(true);
     });
   });
 
-  test('matches content in answer1 field', () => {
-    const searchTerm = 'older policies';
-    filterData(searchTerm, mockFaqData, mockSetData, mockSetNoResultSectionVisible);
+  test('handles case insensitive search', async () => {
+    const { getByTestId } = renderComponent('bpay');
+    
+    const searchButton = getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
 
-    expect(mockSetData).toHaveBeenCalledWith({
-      "categories": {
-        "payments": [
-          {
-            "question": "How can I check my payment status?",
-            "answer": "You can check your payment status by logging into your account.",
-            "answer1": "For older policies, please contact customer support.",
-            "feedbackOrder": 2,
-            "analyticsValue": "faq-payments-check-status"
-          }
-        ]
-      }
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({
+        categories: {
+          payments: [
+            {
+              question: "How do I make a BPAY payment?",
+              answer: "You can make a BPAY payment by calling your bank or using internet banking and selecting the BPAY option.",
+              feedbackOrder: 1,
+              analyticsValue: "faq-payments-make-bpay-payment"
+            }
+          ]
+        }
+      });
+    });
+  });
+
+  test('matches content in answer1 field', async () => {
+    const { getByTestId } = renderComponent('older policies');
+    
+    const searchButton = getByTestId('contact-us-search-btn');
+    fireEvent.click(searchButton);
+
+    await waitFor(() => {
+      expect(mockSetData).toHaveBeenCalledWith({
+        categories: {
+          payments: [
+            {
+              question: "How can I check my payment status?",
+              answer: "You can check your payment status by logging into your account.",
+              answer1: "For older policies, please contact customer support.",
+              feedbackOrder: 2,
+              analyticsValue: "faq-payments-check-status"
+            }
+          ]
+        }
+      });
     });
   });
 });
