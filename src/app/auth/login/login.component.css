@@ -1,8 +1,111 @@
-mat-form-field
- {
-  width: 100%;
-}
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { Accordion, AccordionItem } from '@iag/chroma-react-ui.components';
+import React, { useEffect, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { FeatureName, useFeaturesConfig } from '../../features-config';
+import { CustomerIdentityType } from '../../models/Brand';
+import { ContactUs } from '../../models/ContactUs';
+import { getCustomerCheck } from '../../utils/partyUtils';
+import { getSessionStateItem } from '../../utils/sessionStateUtils';
+import { FaqItem } from './ContactUsUplift';
+import FaqFeedback, { SessionFeedback } from './FaqFeedback';
+import FaqNoResultsSection from './FaqNoResultsSection';
+import FaqResultsBriefSection from './FaqResultsBriefSection';
 
-mat-spinner {
-  margin: auto;
-}
+type FaqSectionProps = {
+  faqData: string | object;
+  searchTerm: string;
+  clearSearchResults: () => void;
+  resultSectionVisible: boolean;
+  noResultSectionVisible: boolean;
+};
+
+const FaqSection: React.FC<BrandDataProps & FaqSectionProps> = ({
+  t,
+  faqData,
+  searchTerm,
+  clearSearchResults,
+  resultSectionVisible,
+  noResultSectionVisible,
+}) => {
+  const [isAccordionExpanded, setIsAccordionExpanded] = React.useState(false);
+  const navigate = useNavigate();
+  const heritageAppLink = useFeaturesConfig(FeatureName.HERITAGE_APP_DEEPLINK);
+  const sessionfeedback: SessionFeedback = JSON.parse(getSessionStateItem(ContactUs.SearchFeedbackKey) || '{}');
+  const [sessionfeedbackInfo, setsessionfeedbackInfo] = useState<SessionFeedback>(sessionfeedback);
+
+  useEffect(() => {
+    if (!isAccordionExpanded) return;
+    document.querySelectorAll('#contactus-internal-link').forEach((a) => {
+      a.addEventListener('click', (event) => {
+        event.preventDefault();
+        const href = a.getAttribute('href');
+        navigate(href);
+      });
+    });
+  }, [isAccordionExpanded]);
+
+  const onClearResults = () => {
+    clearSearchResults();
+  };
+
+  const renderFeedbackSection = (category: string, question: FaqItem) => {
+    return (
+      resultSectionVisible && (
+        <FaqFeedback
+          category={category}
+          questionIndex={question?.feedbackOrder}
+          sessionfeedback={sessionfeedback}
+          sessionfeedbackInfo={sessionfeedbackInfo}
+          setsessionfeedbackInfo={setsessionfeedbackInfo}
+          analyticsValue={question?.analyticsValue}
+        ></FaqFeedback>
+      )
+    );
+  };
+
+  const isCrodsAvailable = getCustomerCheck(CustomerIdentityType.CRODS);
+  const isHuonAvailable = getCustomerCheck(CustomerIdentityType.HUON);
+
+  return (
+    <>
+      {noResultSectionVisible && <FaqNoResultsSection onClearResults={onClearResults} searchTerm={searchTerm} />}
+      {!noResultSectionVisible && (
+        <FaqResultsBriefSection
+          onClearResults={onClearResults}
+          searchTerm={searchTerm}
+          resultSectionVisible={resultSectionVisible}
+        />
+      )}
+      <Accordion data-testid="faq-section" id="contactUsTable" className="pv-mb-g">
+        {Object.entries(faqData).map(([category, questions], categoryIndex) => (
+          <React.Fragment key={`category-${categoryIndex}`}>
+            <h2 data-testid="faq-title" className="text-2xl font-bold mb-4 mt-8 pb-2">
+              {category.charAt(0).toUpperCase() + category.slice(1)}
+            </h2>
+            {Array.isArray(questions) &&
+              questions.map((item: FaqItem, questionIndex: number) => (
+                <AccordionItem
+                  data-testid="faq-accordion"
+                  key={`accordion-${item.analyticsValue}-button`}
+                  id={`item-${category}-${questionIndex}`}
+                  button={<div data-testid="faq-question">{item.question}</div>}
+                  content={
+                    <div data-testid="faq-answer">
+                      {t(item?.answer)}
+                      {(isCrodsAvailable || isHuonAvailable) && item?.answer1 && t(item?.answer1, { heritageAppLink })}
+                      {renderFeedbackSection(category, item)}
+                    </div>
+                  }
+                  onShow={() => setIsAccordionExpanded(true)}
+                  onHide={() => setIsAccordionExpanded(false)}
+                />
+              ))}
+          </React.Fragment>
+        ))}
+      </Accordion>
+    </>
+  );
+};
+
+export default connectIagBrand()(FaqSection);
