@@ -1,9 +1,217 @@
-@layer components {
-  .faq-accordion > div > h2 {
-    @apply border-b pb-2 mb-4;
-  }
+import { BrandDataProps, connectIagBrand } from '@iag-common/iag-brand-context';
+import { dispatchTrackingEventToDocument } from '@iag-common/mfe-global-events';
+import { GlobalEventsContext } from '@iag-common/mfe-global-events-context';
+import { Button } from '@iag/chroma-react-ui.button';
+import { Icon } from '@iag/chroma-react-ui.icon';
+import { Input } from '@iag/chroma-react-ui.input';
+import React, { ChangeEvent, useContext, useState } from 'react';
+import { useNavigate } from 'react-router-dom';
+import { BreadcrumbWrapper } from 'ssc-packages/packages/ui';
+import { BreadcrumbItem } from 'ssc-packages/packages/ui/dist/breadcrumbs/Breadcrumbs';
+import { getBrand } from '../../brand';
+import PageBannerWithBreadCrumb from '../../components/shared/PageBannerWithBreadCrumb';
+import { CustomerIdentityType } from '../../models/Brand';
+import { PageId } from '../../models/PageId';
+import { ActionName, ElementType, Interaction } from '../../models/SiteTracking';
+import { getBrandTitle } from '../../utils/brandUtils';
+import { getCustomerCheck } from '../../utils/partyUtils';
+import { FaqData } from './ContactUsUplift';
 
-  .faq-accordion > div:last-child > div:last-child {
-    @apply border-b-0;
-  }
-}
+type ContactUsSearchProps = {
+  setData: (filteredData: string) => void;
+  searchTerm: string;
+  setSearchTerm: (searchTerm: string) => void;
+  setresultSectionVisible: (flag: boolean) => void;
+  setNoResultSectionVisible: (flag: boolean) => void;
+};
+
+const ContactUsSearch: React.FC<BrandDataProps & ContactUsSearchProps> = ({
+  tt,
+  setData,
+  searchTerm,
+  setSearchTerm,
+  setresultSectionVisible,
+  setNoResultSectionVisible,
+}) => {
+  const globalEventsContext = useContext(GlobalEventsContext);
+
+  const baseKey = `pages.contactUsUplift`;
+
+  const fetchCategories = () => {
+    return tt(`${baseKey}.categories`);
+  };
+  const faqData = fetchCategories();
+
+  const [noSearchTermSectionVisible, setNoSearchTermSectionVisible] = useState(false);
+
+  const renderPageBanner = (): React.ReactNode => {
+    const navigate = useNavigate();
+    return (
+      <div className="w-full">
+        <PageBannerWithBreadCrumb
+          breadcrumbSection={
+            <BreadcrumbWrapper
+              brand={getBrand()}
+              brandTitle={getBrandTitle(tt('labels.brandTitle'))}
+              breadcrumbsEnabled={true}
+              last={tt('pages.contactUs.title')}
+              linkTextColor={`text-${tt('constants.colors.bannerTextColor')}`}
+              onLinkClick={(e: unknown, data: BreadcrumbItem) => {
+                navigate(data.to ?? '/');
+              }}
+              redirectionFromHost={true}
+              showExitModal={false}
+            />
+          }
+        />
+      </div>
+    );
+  };
+
+  const renderTitleSection = () => {
+    return (
+      <div className="flex-row contactUsSearchTitle mb-3 mt-6 font-medium text-3xl">
+        <h2 className="text-primary">{tt('pages.contactUsUplift.info.contactUsSearchTitle')}</h2>
+      </div>
+    );
+  };
+
+  const renderSubTitleSection = () => {
+    return (
+      <div className="flex-row contactUsSearchSubTitle mb-5 font-normal text-base w-3/4">
+        <h3 className="text-primary text-center">{tt('pages.contactUsUplift.info.contactUsSearchSubTitle')}</h3>
+      </div>
+    );
+  };
+
+  const isCrodsAvailable = getCustomerCheck(CustomerIdentityType.CRODS);
+  const isHuonAvailable = getCustomerCheck(CustomerIdentityType.HUON);
+
+  const filterData = () => {
+    const tlc = (str: string) => str.toLowerCase();
+    let filteredData: FaqData = {};
+
+    Object.keys(faqData).forEach((key: string) => {
+      let found = false;
+      found = tlc(key).includes(tlc(searchTerm));
+
+      if (!found) {
+        const arr = [];
+        for (const el of Object(faqData)?.[key]) {
+          if (tlc(el?.question).includes(tlc(searchTerm))) {
+            arr.push(el);
+          } else if (
+            (typeof el?.answer === 'string' && tlc(el?.answer).includes(tlc(searchTerm))) ||
+            ((isCrodsAvailable || isHuonAvailable) &&
+              typeof el?.answer1 === 'string' &&
+              tlc(el?.answer1).includes(tlc(searchTerm)))
+          ) {
+            arr.push(el);
+          }
+        }
+        if (arr.length) {
+          filteredData[key] = arr;
+        }
+      } else {
+        //show whole category if searchTerm exists in category title.
+        filteredData[key] = Object(faqData)[key];
+      }
+    });
+
+    if (!Object.keys(filteredData).length) {
+      setNoResultSectionVisible(true);
+    }
+    setData(Object(filteredData));
+    filteredData = null;
+  };
+
+  const handleTrackingEventForSearchButtonClick = () => {
+    dispatchTrackingEventToDocument(globalEventsContext, {
+      pageName: PageId.ContactUs,
+      interaction: Interaction.CLICK,
+      element: {
+        name: ActionName.SEARCH,
+        type: ElementType.BUTTON,
+        value: searchTerm,
+      },
+    });
+  };
+
+  const onSearchButtonClick = () => {
+    handleTrackingEventForSearchButtonClick();
+    if (searchTerm?.trim()?.length) {
+      filterData();
+      setresultSectionVisible(true);
+      setNoSearchTermSectionVisible(false);
+    } else {
+      setresultSectionVisible(false);
+      setNoSearchTermSectionVisible(true);
+    }
+  };
+
+  const onChangeSearchTerm = (e: ChangeEvent<HTMLInputElement>) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const searchTerm = e.target.value;
+    setSearchTerm(searchTerm);
+    setresultSectionVisible(false);
+    setNoResultSectionVisible(false);
+    setData(Object(faqData));
+  };
+
+  const renderNoSearchTermSection = () => {
+    return (
+      <div className="basis-1/4 my-1">
+        <Icon className="i-times-circle mr-2 text-error" />
+        <span className="font-small text-base">{tt('pages.contactUsUplift.info.contactUsNoSearchTerm')}</span>
+      </div>
+    );
+  };
+
+  const renderSearchSection = () => {
+    return (
+      <div className="mb-8 w-full">
+        <div className="searchfaqsection md:flex md:flex-row justify-center w-full basis-2/4 px-3">
+          <div className="basis-1/4 mr-2 mb-2">
+            <Input
+              className="flex-col p-6 border border-blue-900 max-w-full"
+              type="text"
+              size={4}
+              placeholder={tt('pages.contactUsUplift.info.contactUsSearchInputPlaceholder')}
+              value={searchTerm}
+              onChange={(e) => onChangeSearchTerm(e)}
+              data-tracking-name="search"
+            />
+            {noSearchTermSectionVisible && renderNoSearchTermSection()}
+          </div>
+
+          <div>
+            <Button
+              data-testid="contact-us-search-btn"
+              className="flex-col bg-primary w-full"
+              onClick={() => {
+                onSearchButtonClick();
+              }}
+            >
+              <span>
+                <b>{tt('pages.contactUsUplift.info.contactUsSearchButton')}</b>
+                <Icon className="i-search px-2" />
+              </span>
+            </Button>
+          </div>
+        </div>
+      </div>
+    );
+  };
+
+  return (
+    <div className="flex flex-col justify-between items-center bg-secondary w-full">
+      {renderPageBanner()}
+      {renderTitleSection()}
+      {renderSubTitleSection()}
+      {renderSearchSection()}
+    </div>
+  );
+};
+
+export default connectIagBrand()(ContactUsSearch);
