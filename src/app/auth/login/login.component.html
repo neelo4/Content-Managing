@@ -1,10 +1,10 @@
 import { renderHook } from '@testing-library/react-hooks';
 import { MockedProvider } from '@apollo/client/testing';
+import { gql } from '@apollo/client';
 import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
 import { AppContext } from '../../AppContext';
 import { useFeaturesConfig } from '../../features-config';
 import useBrowserDetect from '../useBrowserDetect';
-import { ONBOARDING_KEY } from '../../components/shared/Constants';
 import { getActivePolicyStatus } from '../../models/PolicyStatus';
 import React from 'react';
 
@@ -13,12 +13,17 @@ jest.mock('../../features-config');
 jest.mock('../useBrowserDetect');
 jest.mock('../../models/PolicyStatus');
 
-describe('useGetOnboardingAndEdocsDetails', () => {
+const ONBOARDING_QUERY = gql`
+  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
+    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
+  }
+`;
+
+describe('useGetOnboardingAndEdocsDetails onCompleted callback', () => {
   const mockSetAppState = jest.fn();
 
   beforeEach(() => {
     jest.clearAllMocks();
-    window.sessionStorage.clear();
     
     // Set up default mocks
     (useFeaturesConfig as jest.Mock).mockReturnValue(true);
@@ -26,26 +31,70 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
   });
 
-  it('should skip query when session storage has onboarding key', () => {
-    // Set up session storage
-    window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
+  it('should update app state when query completes with data', async () => {
+    // Mock response data including policies that should be omitted
+    const mockResponse = {
+      getOnboardingAndEdocsStatus: {
+        showOnboarding: true,
+        showEdocs: false,
+        policies: ['policy1', 'policy2'],
+        someOtherField: 'value'
+      }
+    };
+
+    const mocks = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: { policy_statuses: ['ACTIVE'] }
+        },
+        result: {
+          data: mockResponse
+        }
+      }
+    ];
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
-        <MockedProvider mocks={[]}>
+        <MockedProvider mocks={mocks}>
           {children}
         </MockedProvider>
       </AppContext.Provider>
     );
 
-    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
 
-    // Verify the exact shape of the returned object
-    expect(result.current).toEqual({
-      data: undefined,
-      loading: false,
-      error: undefined,
-      hasAuthenticationError: false
+    // Initial loading state
+    expect(result.current.loading).toBe(true);
+
+    // Wait for the query to complete
+    await waitForNextUpdate();
+
+    // Verify setAppState was called with the correct data
+    expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+    
+    // Get the function passed to setAppState and execute it with a mock previous state
+    const updateFunction = mockSetAppState.mock.calls[0][0];
+    const prevState = {};
+    const newState = updateFunction(prevState);
+
+    // Verify the state update omits policies and preserves other fields
+    expect(newState).toEqual({
+      ...prevState,
+      onboardingAndEdocsResult: {
+        showOnboarding: true,
+        showEdocs: false,
+        someOtherField: 'value'
+      }
+    });
+
+    // Verify the loading state was updated
+    expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+    const loadingUpdateFunction = mockSetAppState.mock.calls[1][0];
+    const updatedLoadingState = loadingUpdateFunction(prevState);
+    expect(updatedLoadingState).toEqual({
+      ...prevState,
+      isOnboardingAndEdocsCallCompleted: true
     });
   });
 });
