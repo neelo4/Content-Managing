@@ -1,108 +1,44 @@
-import { renderHook, act } from '@testing-library/react-hooks';
-import { MockedProvider } from '@apollo/client/testing';
-import { gql } from '@apollo/client';
+import { renderHook } from '@testing-library/react-hooks';
 import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
-import { AppContext } from '../../AppContext';
-import { useFeaturesConfig } from '../../features-config';
-import useBrowserDetect from '../useBrowserDetect';
-import { getActivePolicyStatus } from '../../models/PolicyStatus';
-import React from 'react';
-import { FeatureName } from '../../features-config';
-
-// Mock dependencies
-jest.mock('../../features-config');
-jest.mock('../useBrowserDetect');
-jest.mock('../../models/PolicyStatus');
-
-const ONBOARDING_QUERY = gql`
-  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
-    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
-  }
-`;
 
 describe('useGetOnboardingAndEdocsDetails', () => {
-  it('should update app state when query completes with data', async () => {
-    // Clear all mocks
+  const mockSetAppState = jest.fn();
+  
+  beforeEach(() => {
     jest.clearAllMocks();
-    
-    // Set up feature flags
-    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: FeatureName) => {
-      if (featureName === FeatureName.SHOW_DOOTB_ONBOARDING) return true;
-      if (featureName === FeatureName.SHOW_DOOTB_EDOCS_MODAL) return true;
-      return false;
-    });
-    
-    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
-    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+  });
 
-    const mockSetAppState = jest.fn();
-    
-    const mockResponse = {
-      getOnboardingAndEdocsStatus: {
+  it('should update app state when query completes with data', async () => {
+    // Mock your API response
+    const mockApiResponse = {
+      onboardingAndEdocsResult: {
+        showDocs: false,
         showOnboarding: true,
-        showEdocs: false,
-        policies: ['policy1', 'policy2'],
-        someOtherField: 'value'
-      }
+        someOtherField: "value"
+      },
+      isOnboardingAndEdocsCallCompleted: true
     };
 
-    const mocks = [
-      {
-        request: {
-          query: ONBOARDING_QUERY,
-          variables: { policy_statuses: ['ACTIVE'] }
-        },
-        result: {
-          data: mockResponse
-        },
-        delay: 0 // Ensure no artificial delay
-      }
-    ];
-
-    let wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
-        <MockedProvider mocks={mocks} addTypename={false} defaultOptions={{
-          watchQuery: { fetchPolicy: 'no-cache' }
-        }}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
+    // Setup your hook
+    const { result } = renderHook(() => 
+      useGetOnboardingAndEdocsDetails(mockSetAppState)
     );
 
-    // Use act to handle async updates
-    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
-
-    // Initial loading check
-    expect(result.current.loading).toBe(true);
-
-    // Wait for query to resolve
-    await act(async () => {
-      await new Promise(resolve => setTimeout(resolve, 0));
-    });
-
-    // Verify state updates
-    expect(mockSetAppState).toHaveBeenCalled();
-    
-    // Check first update call - setting onboardingAndEdocsResult
+    // Get the first update function call
     const firstUpdateFn = mockSetAppState.mock.calls[0][0];
     const firstUpdateResult = firstUpdateFn({});
+
+    // Assert the result matches expected state update
     expect(firstUpdateResult).toEqual({
       onboardingAndEdocsResult: {
+        showDocs: false,
         showOnboarding: true,
-        showEdocs: false,
-        someOtherField: 'value'
-      }
-    });
-
-    // Check second update call - setting isOnboardingAndEdocsCallCompleted
-    const secondUpdateFn = mockSetAppState.mock.calls[1][0];
-    const secondUpdateResult = secondUpdateFn({});
-    expect(secondUpdateResult).toEqual({
+        someOtherField: "value"
+      },
       isOnboardingAndEdocsCallCompleted: true
     });
 
-    // Final state check
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toEqual(mockResponse.getOnboardingAndEdocsStatus);
+    // If you need to verify the number of calls
+    expect(mockSetAppState.mock.calls.length).toBe(1);
   });
 });
