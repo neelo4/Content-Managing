@@ -1,5 +1,5 @@
 describe('useGetOnboardingAndEdocsDetails', () => {
-  // Keep existing test setup...
+  // Keep existing test setup code...
 
   it('should update app state when query completes with data', () => {
     // Mock the API query to simulate a successful response
@@ -57,6 +57,65 @@ describe('useGetOnboardingAndEdocsDetails', () => {
 
       // Verify 'policies' was omitted
       expect(newState.onboardingAndEdocsResult).not.toHaveProperty('policies');
+    });
+  });
+
+  // New test case to cover the null data scenario
+  it('should not update app state when query completes without data', () => {
+    const mocksWithoutData = [
+      {
+        request: {
+          query: ONBOARDING_QUERY,
+          variables: {
+            policy_statuses: ['ACTIVE']
+          }
+        },
+        result: {
+          data: {
+            getOnboardingAndEdocsStatus: null
+          }
+        }
+      }
+    ];
+
+    // Setup feature flags to ensure query runs
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+
+    const { result, waitFor } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper(mocksWithoutData)
+    });
+
+    waitFor(() => {
+      // Verify setAppState was not called for the onboardingAndEdocsResult update
+      const setAppStateForDataCalls = mockSetAppState.mock.calls.filter(
+        call => call[0]({}).hasOwnProperty('onboardingAndEdocsResult')
+      );
+      expect(setAppStateForDataCalls.length).toBe(0);
+    });
+  });
+
+  // New test case to verify loading state updates
+  it('should update loading state correctly', () => {
+    const { result, waitFor } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper: createWrapper([])
+    });
+
+    // Verify initial loading state
+    waitFor(() => {
+      expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+      
+      // Get the callback function that was passed to setAppState
+      const setStateCallback = mockSetAppState.mock.calls[0][0];
+      const prevState = {};
+      const newState = setStateCallback(prevState);
+
+      // Verify loading state is updated
+      expect(newState).toEqual({
+        ...prevState,
+        isOnboardingAndEdocsCallCompleted: true
+      });
     });
   });
 });
