@@ -1,6 +1,7 @@
 import { renderHook } from '@testing-library/react-hooks';
 import { MockedProvider } from '@apollo/client/testing';
-import { useGetOnboardingAndEdocsDetails, GET_ONBOARDING_OR_EDOCS_STATUS } from './useGetOnboardingAndEdocsDetails';
+import { gql } from '@apollo/client';
+import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
 import { AppContext } from '../../AppContext';
 import { FeatureName, useFeaturesConfig } from '../../features-config';
 import useBrowserDetect from '../useBrowserDetect';
@@ -11,6 +12,13 @@ import { getActivePolicyStatus } from '../../models/PolicyStatus';
 jest.mock('../../features-config');
 jest.mock('../useBrowserDetect');
 jest.mock('../../models/PolicyStatus');
+
+// Recreate the query since it's not exported
+const ONBOARDING_QUERY = gql`
+  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
+    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
+  }
+`;
 
 describe('useGetOnboardingAndEdocsDetails', () => {
   // Setup common mocks
@@ -97,7 +105,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     const mocks = [
       {
         request: {
-          query: GET_ONBOARDING_OR_EDOCS_STATUS(),
+          query: ONBOARDING_QUERY,
           variables: { policy_statuses: ['ACTIVE'] }
         },
         result: {
@@ -142,7 +150,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     const mocks = [
       {
         request: {
-          query: GET_ONBOARDING_OR_EDOCS_STATUS(),
+          query: ONBOARDING_QUERY,
           variables: { policy_statuses: ['ACTIVE'] }
         },
         error: new Error('An error occurred')
