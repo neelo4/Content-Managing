@@ -22,7 +22,6 @@ const ONBOARDING_QUERY = gql`
 `;
 
 describe('useGetOnboardingAndEdocsDetails', () => {
-  // Setup common mocks
   const mockSetAppState = jest.fn();
   const mockAppContextValue = {
     setAppState: mockSetAppState,
@@ -37,17 +36,10 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     }
   };
 
-  // Define wrapper type
-  type WrapperProps = {
-    children: React.ReactNode;
-    mocks?: any[];
-  };
-
-  // Create reusable wrapper component
   const createWrapper = (mocks: any[] = []) => {
-    const Wrapper: React.FC<WrapperProps> = ({ children }) => (
+    const Wrapper = ({ children }: { children: React.ReactNode }) => (
       <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={mocks} addTypename={false}>
+        <MockedProvider mocks={mocks}>
           {children}
         </MockedProvider>
       </AppContext.Provider>
@@ -72,7 +64,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: true }));
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper()
+      wrapper: createWrapper([])
     });
 
     expect(result.current.loading).toBe(false);
@@ -83,7 +75,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper()
+      wrapper: createWrapper([])
     });
 
     expect(result.current.loading).toBe(false);
@@ -95,7 +87,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       .mockImplementation(() => false);
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper()
+      wrapper: createWrapper([])
     });
 
     expect(result.current.loading).toBe(false);
