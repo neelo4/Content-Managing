@@ -1,13 +1,13 @@
 describe('useGetOnboardingAndEdocsDetails', () => {
   // Keep existing test setup...
 
-  it('should handle successful query completion and update app state', async () => {
+  it('should handle successful query completion and update app state', () => {
     // Mock the features to ensure query runs
     (useFeaturesConfig as jest.Mock).mockReturnValue(true);
     (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
 
-    // Create mock response data
+    // Create mock response data with proper typing
     const mockResponse = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
@@ -17,8 +17,8 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       }
     };
 
-    // Set up mock for useApiQuery
-    mockUseApiQuery.mockImplementation((query, mapper, options) => {
+    // Set up mock for useApiQuery with proper typing
+    mockUseApiQuery.mockImplementation((query: any, mapper: any, options: any) => {
       // Immediately call onCompleted with mock data
       if (options.onCompleted) {
         options.onCompleted(mockResponse);
@@ -27,42 +27,49 @@ describe('useGetOnboardingAndEdocsDetails', () => {
         jest.fn(),
         {
           data: mockResponse,
-          loading: false
+          loading: false,
+          hasAuthenticationError: false,
+          error: undefined
         }
       ];
     });
 
-    const mockSetAppState = jest.fn();
+    // Create wrapper with proper context
+    const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
+      <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
+        {children}
+      </AppContext.Provider>
+    );
 
     // Render the hook
-    renderHook(() => useGetOnboardingAndEdocsDetails(mockSetAppState), {
-      wrapper: createWrapper()
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(mockAppState.setAppState), {
+      wrapper
     });
 
-    // Verify setAppState was called correctly
+    // Verify the hook result matches expected structure
+    expect(result.current).toEqual({
+      data: mockResponse,
+      loading: false,
+      hasAuthenticationError: false,
+      error: undefined
+    });
+
+    // Verify setAppState was called with correct data
     expect(mockSetAppState).toHaveBeenCalled();
+    
+    // Get and verify the state update
+    const updateStateCallback = mockSetAppState.mock.calls[0][0];
+    const newState = updateStateCallback({});
 
-    // Get the first callback passed to setAppState
-    const updateStateCallback = mockSetAppState.mock.calls.find(
-      call => call[0].toString().includes('onboardingAndEdocsResult')
-    )[0];
-
-    // Execute the callback with a previous state
-    const prevState = {};
-    const newState = updateStateCallback(prevState);
-
-    // Verify the state was updated correctly
     expect(newState).toEqual({
-      ...prevState,
       onboardingAndEdocsResult: {
         showOnboarding: true,
         showEdocs: false,
         onboardingType: 'test'
-        // policies should be omitted
       }
     });
 
-    // Verify the policies field was omitted
+    // Verify policies field was omitted
     expect(newState.onboardingAndEdocsResult).not.toHaveProperty('policies');
   });
 });
