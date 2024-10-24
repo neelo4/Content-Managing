@@ -1,50 +1,171 @@
-import { gql } from '@apollo/client';
-import _ from 'lodash';
-import { useContext, useEffect } from 'react';
-import { AppContext, AppState } from '../../AppContext';
-import { ONBOARDING_KEY } from '../../components/shared/Constants';
+import { renderHook } from '@testing-library/react-hooks';
+import { MockedProvider } from '@apollo/client/testing';
+import { useGetOnboardingAndEdocsDetails, GET_ONBOARDING_OR_EDOCS_STATUS } from './useGetOnboardingAndEdocsDetails';
+import { AppContext } from '../../AppContext';
 import { FeatureName, useFeaturesConfig } from '../../features-config';
-import { mapOnboardingorEdocsStatus } from '../../mappers/mapOnboardingOrEdocsDetails';
-import { OnboardingAndEdocsStatus } from '../../models/OnboardingModule';
-import { getActivePolicyStatus } from '../../models/PolicyStatus';
 import useBrowserDetect from '../useBrowserDetect';
-import { ApiHook, useApiQuery } from './useApi';
+import { ONBOARDING_KEY } from '../../components/shared/Constants';
+import { getActivePolicyStatus } from '../../models/PolicyStatus';
 
-const GET_ONBOARDING_OR_EDOCS_STATUS = () => gql`
-  query getOnboardingAndEdocsStatus($policy_statuses: [String]) {
-    getOnboardingAndEdocsStatus(policyStatuses: $policy_statuses)
-  }
-`;
+// Mock dependencies
+jest.mock('../../features-config');
+jest.mock('../useBrowserDetect');
+jest.mock('../../models/PolicyStatus');
 
-export const useGetOnboardingAndEdocsDetails: ApiHook<OnboardingAndEdocsStatus> = () => {
-  const { setAppState } = useContext(AppContext);
-  const showOnboardingModule = useFeaturesConfig(FeatureName.SHOW_DOOTB_ONBOARDING);
-  const showEdocsModal = useFeaturesConfig(FeatureName.SHOW_DOOTB_EDOCS_MODAL);
-  const { isMobileApp } = useBrowserDetect();
-  const savedState = sessionStorage.getItem(ONBOARDING_KEY);
+describe('useGetOnboardingAndEdocsDetails', () => {
+  // Setup common mocks
+  const mockSetAppState = jest.fn();
+  const mockAppContextValue = {
+    setAppState: mockSetAppState,
+    appState: {}
+  };
 
-  const { data, loading, error } = useApiQuery(GET_ONBOARDING_OR_EDOCS_STATUS(), mapOnboardingorEdocsStatus, {
-    staleWhileRevalidate: true,
-    variables: {
-      policy_statuses: getActivePolicyStatus(),
-    },
-    skip: isMobileApp || !!savedState || (!showOnboardingModule && !showEdocsModal),
-    onCompleted: (data) => {
-      if (!!data?.getOnboardingAndEdocsStatus) {
-        setAppState((prev: AppState) => ({
-          ...prev,
-          onboardingAndEdocsResult: _.omit(data?.getOnboardingAndEdocsStatus, 'policies'),
-        }));
-      }
-    },
+  const mockOnboardingResponse = {
+    getOnboardingAndEdocsStatus: {
+      showOnboarding: true,
+      showEdocs: false,
+      policies: ['policy1', 'policy2']
+    }
+  };
+
+  beforeEach(() => {
+    // Reset all mocks before each test
+    jest.clearAllMocks();
+    
+    // Default mock implementations
+    (useFeaturesConfig as jest.Mock).mockImplementation(() => true);
+    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: false }));
+    (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
+    
+    // Clear session storage
+    window.sessionStorage.clear();
   });
 
-  useEffect(() => {
-    setAppState((prev: AppState) => ({
-      ...prev,
-      isOnboardingAndEdocsCallCompleted: !loading,
-    }));
-  }, [loading]);
+  it('should skip query when using mobile app', () => {
+    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: true }));
 
-  return { data, loading, hasAuthenticationError: false, error };
-};
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={[]}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('should skip query when session storage has onboarding key', () => {
+    window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={[]}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('should skip query when both feature flags are disabled', () => {
+    (useFeaturesConfig as jest.Mock)
+      .mockImplementation((featureName: FeatureName) => false);
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={[]}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toBeUndefined();
+  });
+
+  it('should fetch data and update app state when conditions are met', async () => {
+    const mocks = [
+      {
+        request: {
+          query: GET_ONBOARDING_OR_EDOCS_STATUS(),
+          variables: { policy_statuses: ['ACTIVE'] }
+        },
+        result: {
+          data: mockOnboardingResponse
+        }
+      }
+    ];
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={mocks} addTypename={false}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+
+    expect(result.current.loading).toBe(true);
+
+    await waitForNextUpdate();
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toEqual(mockOnboardingResponse.getOnboardingAndEdocsStatus);
+    expect(mockSetAppState).toHaveBeenCalledTimes(2);
+    
+    // Verify the first call updates onboardingAndEdocsResult
+    expect(mockSetAppState.mock.calls[0][0]({} as any)).toEqual({
+      onboardingAndEdocsResult: {
+        showOnboarding: true,
+        showEdocs: false
+      }
+    });
+
+    // Verify the second call updates isOnboardingAndEdocsCallCompleted
+    expect(mockSetAppState.mock.calls[1][0]({} as any)).toEqual({
+      isOnboardingAndEdocsCallCompleted: true
+    });
+  });
+
+  it('should handle query errors', async () => {
+    const mocks = [
+      {
+        request: {
+          query: GET_ONBOARDING_OR_EDOCS_STATUS(),
+          variables: { policy_statuses: ['ACTIVE'] }
+        },
+        error: new Error('An error occurred')
+      }
+    ];
+
+    const wrapper = ({ children }: { children: React.ReactNode }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={mocks} addTypename={false}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+
+    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+
+    expect(result.current.loading).toBe(true);
+
+    await waitForNextUpdate();
+
+    expect(result.current.loading).toBe(false);
+    expect(result.current.error).toBeDefined();
+    expect(result.current.data).toBeUndefined();
+    expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+  });
+});
