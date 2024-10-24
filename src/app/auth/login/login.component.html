@@ -1,4 +1,4 @@
-import { renderHook } from '@testing-library/react-hooks';
+import { renderHook, act } from '@testing-library/react-hooks';
 import { MockedProvider } from '@apollo/client/testing';
 import { gql } from '@apollo/client';
 import { useGetOnboardingAndEdocsDetails } from './useGetOnboardingAndEdocsDetails';
@@ -25,17 +25,14 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     // Clear all mocks
     jest.clearAllMocks();
     
-    // Set up feature flags to ensure query isn't skipped
+    // Set up feature flags
     (useFeaturesConfig as jest.Mock).mockImplementation((featureName: FeatureName) => {
       if (featureName === FeatureName.SHOW_DOOTB_ONBOARDING) return true;
       if (featureName === FeatureName.SHOW_DOOTB_EDOCS_MODAL) return true;
       return false;
     });
     
-    // Set up browser detection to not skip
     (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
-    
-    // Set up policy status
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
 
     const mockSetAppState = jest.fn();
@@ -57,32 +54,39 @@ describe('useGetOnboardingAndEdocsDetails', () => {
         },
         result: {
           data: mockResponse
-        }
+        },
+        delay: 0 // Ensure no artificial delay
       }
     ];
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
+    let wrapper = ({ children }: { children: React.ReactNode }) => (
       <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
-        <MockedProvider mocks={mocks} addTypename={false}>
+        <MockedProvider mocks={mocks} addTypename={false} defaultOptions={{
+          watchQuery: { fetchPolicy: 'no-cache' }
+        }}>
           {children}
         </MockedProvider>
       </AppContext.Provider>
     );
 
-    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    // Use act to handle async updates
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
 
-    // Initial state check
+    // Initial loading check
     expect(result.current.loading).toBe(true);
 
-    // Wait for query to complete
-    await waitForNextUpdate();
+    // Wait for query to resolve
+    await act(async () => {
+      await new Promise(resolve => setTimeout(resolve, 0));
+    });
 
-    // Verify the state updates
-    const updateStateCalls = mockSetAppState.mock.calls;
+    // Verify state updates
+    expect(mockSetAppState).toHaveBeenCalled();
     
-    // First update should set the onboardingAndEdocsResult
-    const firstUpdate = updateStateCalls[0][0]({});
-    expect(firstUpdate).toEqual({
+    // Check first update call - setting onboardingAndEdocsResult
+    const firstUpdateFn = mockSetAppState.mock.calls[0][0];
+    const firstUpdateResult = firstUpdateFn({});
+    expect(firstUpdateResult).toEqual({
       onboardingAndEdocsResult: {
         showOnboarding: true,
         showEdocs: false,
@@ -90,9 +94,10 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       }
     });
 
-    // Second update should set isOnboardingAndEdocsCallCompleted
-    const secondUpdate = updateStateCalls[1][0]({});
-    expect(secondUpdate).toEqual({
+    // Check second update call - setting isOnboardingAndEdocsCallCompleted
+    const secondUpdateFn = mockSetAppState.mock.calls[1][0];
+    const secondUpdateResult = secondUpdateFn({});
+    expect(secondUpdateResult).toEqual({
       isOnboardingAndEdocsCallCompleted: true
     });
 
