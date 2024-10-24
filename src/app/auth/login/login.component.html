@@ -7,6 +7,7 @@ import { useFeaturesConfig } from '../../features-config';
 import useBrowserDetect from '../useBrowserDetect';
 import { getActivePolicyStatus } from '../../models/PolicyStatus';
 import React from 'react';
+import { FeatureName } from '../../features-config';
 
 // Mock dependencies
 jest.mock('../../features-config');
@@ -19,20 +20,26 @@ const ONBOARDING_QUERY = gql`
   }
 `;
 
-describe('useGetOnboardingAndEdocsDetails onCompleted callback', () => {
-  const mockSetAppState = jest.fn();
-
-  beforeEach(() => {
+describe('useGetOnboardingAndEdocsDetails', () => {
+  it('should update app state when query completes with data', async () => {
+    // Clear all mocks
     jest.clearAllMocks();
     
-    // Set up default mocks
-    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    // Set up feature flags to ensure query isn't skipped
+    (useFeaturesConfig as jest.Mock).mockImplementation((featureName: FeatureName) => {
+      if (featureName === FeatureName.SHOW_DOOTB_ONBOARDING) return true;
+      if (featureName === FeatureName.SHOW_DOOTB_EDOCS_MODAL) return true;
+      return false;
+    });
+    
+    // Set up browser detection to not skip
     (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
+    
+    // Set up policy status
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
-  });
 
-  it('should update app state when query completes with data', async () => {
-    // Mock response data including policies that should be omitted
+    const mockSetAppState = jest.fn();
+    
     const mockResponse = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
@@ -56,7 +63,7 @@ describe('useGetOnboardingAndEdocsDetails onCompleted callback', () => {
 
     const wrapper = ({ children }: { children: React.ReactNode }) => (
       <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
-        <MockedProvider mocks={mocks}>
+        <MockedProvider mocks={mocks} addTypename={false}>
           {children}
         </MockedProvider>
       </AppContext.Provider>
@@ -64,23 +71,18 @@ describe('useGetOnboardingAndEdocsDetails onCompleted callback', () => {
 
     const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
 
-    // Initial loading state
+    // Initial state check
     expect(result.current.loading).toBe(true);
 
-    // Wait for the query to complete
+    // Wait for query to complete
     await waitForNextUpdate();
 
-    // Verify setAppState was called with the correct data
-    expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
+    // Verify the state updates
+    const updateStateCalls = mockSetAppState.mock.calls;
     
-    // Get the function passed to setAppState and execute it with a mock previous state
-    const updateFunction = mockSetAppState.mock.calls[0][0];
-    const prevState = {};
-    const newState = updateFunction(prevState);
-
-    // Verify the state update omits policies and preserves other fields
-    expect(newState).toEqual({
-      ...prevState,
+    // First update should set the onboardingAndEdocsResult
+    const firstUpdate = updateStateCalls[0][0]({});
+    expect(firstUpdate).toEqual({
       onboardingAndEdocsResult: {
         showOnboarding: true,
         showEdocs: false,
@@ -88,13 +90,14 @@ describe('useGetOnboardingAndEdocsDetails onCompleted callback', () => {
       }
     });
 
-    // Verify the loading state was updated
-    expect(mockSetAppState).toHaveBeenCalledWith(expect.any(Function));
-    const loadingUpdateFunction = mockSetAppState.mock.calls[1][0];
-    const updatedLoadingState = loadingUpdateFunction(prevState);
-    expect(updatedLoadingState).toEqual({
-      ...prevState,
+    // Second update should set isOnboardingAndEdocsCallCompleted
+    const secondUpdate = updateStateCalls[1][0]({});
+    expect(secondUpdate).toEqual({
       isOnboardingAndEdocsCallCompleted: true
     });
+
+    // Final state check
+    expect(result.current.loading).toBe(false);
+    expect(result.current.data).toEqual(mockResponse.getOnboardingAndEdocsStatus);
   });
 });
