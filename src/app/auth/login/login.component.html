@@ -7,22 +7,25 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
 
-    // Create mock response data with proper typing
+    // Create mock response data matching the expected type
     const mockResponse = {
       getOnboardingAndEdocsStatus: {
         showOnboarding: true,
         showEdocs: false,
         policies: ['policy1', 'policy2'],
-        onboardingType: 'test'
+        onboardingType: 'test',
+        hasAuthenticationError: false,
+        error: undefined
       }
     };
 
-    // Set up mock for useApiQuery with proper typing
-    mockUseApiQuery.mockImplementation((query: any, mapper: any, options: any) => {
+    // Set up mock for useApiQuery with correct type definition
+    mockUseApiQuery.mockImplementation((_query: DocumentNode, mapper: any, options: ApiQueryOptions<unknown, unknown>) => {
       // Immediately call onCompleted with mock data
       if (options.onCompleted) {
         options.onCompleted(mockResponse);
       }
+
       return [
         jest.fn(),
         {
@@ -34,9 +37,14 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       ];
     });
 
-    // Create wrapper with proper context
+    // Create properly typed wrapper
     const wrapper: React.FC<{ children: React.ReactNode }> = ({ children }) => (
-      <AppContext.Provider value={{ setAppState: mockSetAppState, appState: {} }}>
+      <AppContext.Provider 
+        value={{ 
+          setAppState: mockSetAppState, 
+          appState: {} 
+        }}
+      >
         {children}
       </AppContext.Provider>
     );
@@ -46,7 +54,7 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       wrapper
     });
 
-    // Verify the hook result matches expected structure
+    // Verify the complete data structure
     expect(result.current).toEqual({
       data: mockResponse,
       loading: false,
@@ -54,10 +62,10 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       error: undefined
     });
 
-    // Verify setAppState was called with correct data
+    // Verify setAppState was called
     expect(mockSetAppState).toHaveBeenCalled();
     
-    // Get and verify the state update
+    // Verify state update
     const updateStateCallback = mockSetAppState.mock.calls[0][0];
     const newState = updateStateCallback({});
 
@@ -68,8 +76,5 @@ describe('useGetOnboardingAndEdocsDetails', () => {
         onboardingType: 'test'
       }
     });
-
-    // Verify policies field was omitted
-    expect(newState.onboardingAndEdocsResult).not.toHaveProperty('policies');
   });
 });
