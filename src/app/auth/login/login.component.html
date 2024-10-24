@@ -7,6 +7,7 @@ import { FeatureName, useFeaturesConfig } from '../../features-config';
 import useBrowserDetect from '../useBrowserDetect';
 import { ONBOARDING_KEY } from '../../components/shared/Constants';
 import { getActivePolicyStatus } from '../../models/PolicyStatus';
+import React from 'react';
 
 // Mock dependencies
 jest.mock('../../features-config');
@@ -36,6 +37,24 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     }
   };
 
+  // Define wrapper type
+  type WrapperProps = {
+    children: React.ReactNode;
+    mocks?: any[];
+  };
+
+  // Create reusable wrapper component
+  const createWrapper = (mocks: any[] = []) => {
+    const Wrapper: React.FC<WrapperProps> = ({ children }) => (
+      <AppContext.Provider value={mockAppContextValue}>
+        <MockedProvider mocks={mocks} addTypename={false}>
+          {children}
+        </MockedProvider>
+      </AppContext.Provider>
+    );
+    return Wrapper;
+  };
+
   beforeEach(() => {
     // Reset all mocks before each test
     jest.clearAllMocks();
@@ -52,15 +71,9 @@ describe('useGetOnboardingAndEdocsDetails', () => {
   it('should skip query when using mobile app', () => {
     (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: true }));
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={[]}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
-    );
-
-    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
+      wrapper: createWrapper()
+    });
 
     expect(result.current.loading).toBe(false);
     expect(result.current.data).toBeUndefined();
@@ -69,15 +82,9 @@ describe('useGetOnboardingAndEdocsDetails', () => {
   it('should skip query when session storage has onboarding key', () => {
     window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={[]}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
-    );
-
-    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
+      wrapper: createWrapper()
+    });
 
     expect(result.current.loading).toBe(false);
     expect(result.current.data).toBeUndefined();
@@ -85,17 +92,11 @@ describe('useGetOnboardingAndEdocsDetails', () => {
 
   it('should skip query when both feature flags are disabled', () => {
     (useFeaturesConfig as jest.Mock)
-      .mockImplementation((featureName: FeatureName) => false);
+      .mockImplementation(() => false);
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={[]}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
-    );
-
-    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
+      wrapper: createWrapper()
+    });
 
     expect(result.current.loading).toBe(false);
     expect(result.current.data).toBeUndefined();
@@ -114,15 +115,9 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       }
     ];
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={mocks} addTypename={false}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
-    );
-
-    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
+      wrapper: createWrapper(mocks)
+    });
 
     expect(result.current.loading).toBe(true);
 
@@ -157,15 +152,9 @@ describe('useGetOnboardingAndEdocsDetails', () => {
       }
     ];
 
-    const wrapper = ({ children }: { children: React.ReactNode }) => (
-      <AppContext.Provider value={mockAppContextValue}>
-        <MockedProvider mocks={mocks} addTypename={false}>
-          {children}
-        </MockedProvider>
-      </AppContext.Provider>
-    );
-
-    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), { wrapper });
+    const { result, waitForNextUpdate } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
+      wrapper: createWrapper(mocks)
+    });
 
     expect(result.current.loading).toBe(true);
 
