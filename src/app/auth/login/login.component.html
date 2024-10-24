@@ -52,8 +52,8 @@ describe('useGetOnboardingAndEdocsDetails', () => {
     jest.clearAllMocks();
     
     // Default mock implementations
-    (useFeaturesConfig as jest.Mock).mockImplementation(() => true);
-    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: false }));
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: false });
     (getActivePolicyStatus as jest.Mock).mockReturnValue(['ACTIVE']);
     
     // Clear session storage
@@ -61,37 +61,51 @@ describe('useGetOnboardingAndEdocsDetails', () => {
   });
 
   it('should skip query when using mobile app', () => {
-    (useBrowserDetect as jest.Mock).mockImplementation(() => ({ isMobileApp: true }));
+    // Set up mobile detection
+    (useBrowserDetect as jest.Mock).mockReturnValue({ isMobileApp: true });
+    (useFeaturesConfig as jest.Mock).mockReturnValue(true);
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper([])
+      wrapper: createWrapper()
     });
 
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeUndefined();
+    // Check the returned values exactly match what we expect when skipping
+    expect(result.current).toEqual({
+      data: undefined,
+      loading: false,
+      error: undefined,
+      hasAuthenticationError: false
+    });
   });
 
   it('should skip query when session storage has onboarding key', () => {
     window.sessionStorage.setItem(ONBOARDING_KEY, 'true');
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper([])
+      wrapper: createWrapper()
     });
 
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current).toEqual({
+      data: undefined,
+      loading: false,
+      error: undefined,
+      hasAuthenticationError: false
+    });
   });
 
   it('should skip query when both feature flags are disabled', () => {
-    (useFeaturesConfig as jest.Mock)
-      .mockImplementation(() => false);
+    (useFeaturesConfig as jest.Mock).mockReturnValue(false);
 
     const { result } = renderHook(() => useGetOnboardingAndEdocsDetails(), {
-      wrapper: createWrapper([])
+      wrapper: createWrapper()
     });
 
-    expect(result.current.loading).toBe(false);
-    expect(result.current.data).toBeUndefined();
+    expect(result.current).toEqual({
+      data: undefined,
+      loading: false,
+      error: undefined,
+      hasAuthenticationError: false
+    });
   });
 
   it('should fetch data and update app state when conditions are met', async () => {
